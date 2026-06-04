@@ -1,5 +1,5 @@
 import 'server-only';
-import { getDb } from './db';
+import { q } from './db';
 
 export interface Bucket {
   label: string;
@@ -16,13 +16,13 @@ export interface EventRow {
 }
 
 /** Event counts per day for the last `days` days (zero-filled). */
-export function dailyCounts(days = 14): Bucket[] {
-  const rows = getDb()
-    .prepare(
-      `SELECT date(ts) d, COUNT(*) c FROM events
-       WHERE ts >= datetime('now', ?) GROUP BY date(ts)`,
-    )
-    .all(`-${days} days`) as unknown as { d: string; c: number }[];
+export async function dailyCounts(days = 14): Promise<Bucket[]> {
+  const rows = await q<{ d: string; c: number }>(
+    `SELECT to_char(ts, 'YYYY-MM-DD') AS d, COUNT(*)::int AS c FROM events
+     WHERE ts >= now() - ($1 || ' days')::interval
+     GROUP BY to_char(ts, 'YYYY-MM-DD')`,
+    [days],
+  );
   const map = new Map(rows.map((r) => [r.d, r.c]));
   const out: Bucket[] = [];
   for (let i = days - 1; i >= 0; i--) {
@@ -32,36 +32,34 @@ export function dailyCounts(days = 14): Bucket[] {
   return out;
 }
 
-function group(sql: string): Bucket[] {
-  const rows = getDb().prepare(sql).all() as unknown as { label: string | null; value: number }[];
-  return rows.map((r) => ({ label: r.label ?? '—', value: r.value }));
+async function group(sql: string): Promise<Bucket[]> {
+  const rows = await q<{ label: string | null; value: number }>(sql);
+  return rows.map((r) => ({ label: r.label ?? '—', value: Number(r.value) }));
 }
 
 export const countsByType = () =>
-  group('SELECT type AS label, COUNT(*) AS value FROM events GROUP BY type ORDER BY value DESC');
+  group('SELECT type AS label, COUNT(*)::int AS value FROM events GROUP BY type ORDER BY value DESC');
 
 export const topTools = (limit = 6) =>
   group(
-    `SELECT name AS label, COUNT(*) AS value FROM events
+    `SELECT name AS label, COUNT(*)::int AS value FROM events
      WHERE type = 'tool_used' AND name IS NOT NULL GROUP BY name ORDER BY value DESC LIMIT ${limit}`,
   );
 
 export const deviceSplit = () =>
   group(
-    "SELECT COALESCE(device,'—') AS label, COUNT(*) AS value FROM events WHERE type='page_view' GROUP BY device ORDER BY value DESC",
+    "SELECT COALESCE(device,'—') AS label, COUNT(*)::int AS value FROM events WHERE type='page_view' GROUP BY device ORDER BY value DESC",
   );
 
 export const topCountries = (limit = 6) =>
   group(
-    `SELECT COALESCE(country,'Unknown') AS label, COUNT(*) AS value FROM events
+    `SELECT COALESCE(country,'Unknown') AS label, COUNT(*)::int AS value FROM events
      GROUP BY country ORDER BY value DESC LIMIT ${limit}`,
   );
 
-export function recentEvents(limit = 50): EventRow[] {
-  return getDb()
-    .prepare(
-      `SELECT ts, type, name, country, device, browser, ip FROM events
-       ORDER BY id DESC LIMIT ${limit}`,
-    )
-    .all() as unknown as EventRow[];
+export async function recentEvents(limit = 50): Promise<EventRow[]> {
+  return q<EventRow>(
+    `SELECT to_char(ts, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS ts, type, name, country, device, browser, ip
+     FROM events ORDER BY id DESC LIMIT ${limit}`,
+  );
 }

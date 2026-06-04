@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb, verifyPassword, hashPassword } from '@/lib/server/db';
+import { q, q1, verifyPassword, hashPassword } from '@/lib/server/db';
 import { getSessionAdmin, audit } from '@/lib/server/auth';
 
 export const runtime = 'nodejs';
@@ -15,18 +15,18 @@ export async function POST(req: Request) {
   if (!current || !next) return NextResponse.json({ error: 'Both fields are required.' }, { status: 400 });
   if (next.length < 8) return NextResponse.json({ error: 'New password must be at least 8 characters.' }, { status: 400 });
 
-  const db = getDb();
-  const row = db.prepare('SELECT password_hash FROM admins WHERE id = ?').get(admin.id) as
-    | { password_hash: string }
-    | undefined;
+  const row = await q1<{ password_hash: string }>(
+    'SELECT password_hash FROM admins WHERE id = $1',
+    [admin.id],
+  );
   if (!row || !verifyPassword(current, row.password_hash)) {
     return NextResponse.json({ error: 'Current password is incorrect.' }, { status: 400 });
   }
 
-  db.prepare('UPDATE admins SET password_hash = ?, must_change_password = 0 WHERE id = ?').run(
+  await q('UPDATE admins SET password_hash = $1, must_change_password = 0 WHERE id = $2', [
     hashPassword(next),
     admin.id,
-  );
-  audit(admin.id, 'change_password');
+  ]);
+  await audit(admin.id, 'change_password');
   return NextResponse.json({ ok: true });
 }

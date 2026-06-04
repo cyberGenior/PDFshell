@@ -1,5 +1,5 @@
 import 'server-only';
-import { getDb } from './db';
+import { q, q1 } from './db';
 import { encrypt, decrypt, maskKey } from './crypto';
 
 export type Provider = 'ollama' | 'openai' | 'anthropic' | 'custom';
@@ -29,69 +29,84 @@ export interface ActiveModel {
   apiKey: string;
 }
 
-export function listModels(): ModelView[] {
-  const rows = getDb()
-    .prepare('SELECT id, label, provider, base_url, model, api_key_enc, is_active FROM ai_models ORDER BY id')
-    .all() as unknown as Array<{
-      id: number; label: string; provider: string; base_url: string; model: string; api_key_enc: string | null; is_active: number;
-    }>;
-  return rows.map((r) => ({
-    id: r.id,
-    label: r.label,
-    provider: r.provider,
-    base_url: r.base_url,
-    model: r.model,
-    is_active: r.is_active,
-    key_masked: r.api_key_enc ? maskKey(decryptSafe(r.api_key_enc)) : '',
-  }));
+interface ModelRow {
+  id: number;
+  label: string;
+  provider: string;
+  base_url: string;
+  model: string;
+  api_key_enc: string | null;
+  is_active: number;
 }
 
-function decryptSafe(blob: string): string {
+async function decryptSafe(blob: string): Promise<string> {
   try {
-    return decrypt(blob);
+    return await decrypt(blob);
   } catch {
     return '';
   }
 }
 
-export function createModel(input: ModelInput): number {
-  const db = getDb();
-  const enc = input.apiKey ? encrypt(input.apiKey) : null;
-  const info = db
-    .prepare('INSERT INTO ai_models (label, provider, base_url, model, api_key_enc) VALUES (?, ?, ?, ?, ?)')
-    .run(input.label, input.provider, input.baseUrl, input.model, enc);
-  const id = Number(info.lastInsertRowid);
+export async function listModels(): Promise<ModelView[]> {
+  const rows = await q<ModelRow>(
+    'SELECT id, label, provider, base_url, model, api_key_enc, is_active FROM ai_models ORDER BY id',
+  );
+  return Promise.all(
+    rows.map(async (r) => ({
+      id: r.id,
+      label: r.label,
+      provider: r.provider,
+      base_url: r.base_url,
+      model: r.model,
+      is_active: r.is_active,
+      key_masked: r.api_key_enc ? maskKey(await decryptSafe(r.api_key_enc)) : '',
+    })),
+  );
+}
+
+export async function createModel(input: ModelInput): Promise<number> {
+  const enc = input.apiKey ? await encrypt(input.apiKey) : null;
+  const row = await q1<{ id: number }>(
+    'INSERT INTO ai_models (label, provider, base_url, model, api_key_enc) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+    [input.label, input.provider, input.baseUrl, input.model, enc],
+  );
+  const id = row!.id;
   // First model becomes active automatically.
-  const count = db.prepare('SELECT COUNT(*) c FROM ai_models').get() as { c: number };
-  if (count.c === 1) activateModel(id);
+  const count = await q1<{ c: number }>('SELECT COUNT(*)::int AS c FROM ai_models');
+  if (count!.c === 1) await activateModel(id);
   return id;
 }
 
-export function deleteModel(id: number): void {
-  getDb().prepare('DELETE FROM ai_models WHERE id = ?').run(id);
+export async function deleteModel(id: number): Promise<void> {
+  await q('DELETE FROM ai_models WHERE id = $1', [id]);
 }
 
-export function activateModel(id: number): void {
-  const db = getDb();
-  db.prepare('UPDATE ai_models SET is_active = 0').run();
-  db.prepare('UPDATE ai_models SET is_active = 1 WHERE id = ?').run(id);
+export async function activateModel(id: number): Promise<void> {
+  await q('UPDATE ai_models SET is_active = 0', []);
+  await q('UPDATE ai_models SET is_active = 1 WHERE id = $1', [id]);
 }
 
-export function getActiveModel(): ActiveModel | null {
-  const r = getDb()
-    .prepare('SELECT provider, base_url, model, api_key_enc FROM ai_models WHERE is_active = 1 LIMIT 1')
-    .get() as { provider: string; base_url: string; model: string; api_key_enc: string | null } | undefined;
+export async function getActiveModel(): Promise<ActiveModel | null> {
+  const r = await q1<ModelRow>(
+    'SELECT provider, base_url, model, api_key_enc FROM ai_models WHERE is_active = 1 LIMIT 1',
+  );
   if (!r) return null;
-  return { provider: r.provider, baseUrl: r.base_url, model: r.model, apiKey: r.api_key_enc ? decryptSafe(r.api_key_enc) : '' };
+  return {
+    provider: r.provider,
+    baseUrl: r.base_url,
+    model: r.model,
+    apiKey: r.api_key_enc ? await decryptSafe(r.api_key_enc) : '',
+  };
 }
 
 /** Lightweight reachability check per provider. */
 export async function testModel(id: number): Promise<{ ok: boolean; detail: string }> {
-  const r = getDb()
-    .prepare('SELECT provider, base_url, model, api_key_enc FROM ai_models WHERE id = ?')
-    .get(id) as { provider: string; base_url: string; model: string; api_key_enc: string | null } | undefined;
+  const r = await q1<ModelRow>(
+    'SELECT provider, base_url, model, api_key_enc FROM ai_models WHERE id = $1',
+    [id],
+  );
   if (!r) return { ok: false, detail: 'Model not found.' };
-  const apiKey = r.api_key_enc ? decryptSafe(r.api_key_enc) : '';
+  const apiKey = r.api_key_enc ? await decryptSafe(r.api_key_enc) : '';
   try {
     if (r.provider === 'ollama') {
       const res = await fetch(`${r.base_url.replace(/\/$/, '')}/api/tags`, { signal: AbortSignal.timeout(8000) });
@@ -101,7 +116,7 @@ export async function testModel(id: number): Promise<{ ok: boolean; detail: stri
       return { ok: true, detail: has ? `Reachable; "${r.model}" is installed.` : `Reachable, but "${r.model}" not pulled yet.` };
     }
     // OpenAI-compatible (openai/custom) and anthropic: hit a cheap list endpoint.
-    const url = r.provider === 'anthropic' ? `${r.base_url.replace(/\/$/, '')}/v1/models` : `${r.base_url.replace(/\/$/, '')}/v1/models`;
+    const url = `${r.base_url.replace(/\/$/, '')}/v1/models`;
     const headers: Record<string, string> = {};
     if (r.provider === 'anthropic') {
       headers['x-api-key'] = apiKey;

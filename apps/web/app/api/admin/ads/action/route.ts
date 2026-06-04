@@ -13,17 +13,17 @@ export async function POST(req: Request) {
 
   switch (action) {
     case 'enable':
-      setAdEnabled(id, true);
+      await setAdEnabled(id, true);
       break;
     case 'disable':
-      setAdEnabled(id, false);
+      await setAdEnabled(id, false);
       break;
     case 'delete':
-      deleteAd(id);
+      await deleteAd(id);
       break;
     default:
       return NextResponse.json({ error: 'Unknown action.' }, { status: 400 });
   }
-  audit(admin.id, `ad_${action}`, String(id));
+  await audit(admin.id, `ad_${action}`, String(id));
   return NextResponse.json({ ok: true });
 }

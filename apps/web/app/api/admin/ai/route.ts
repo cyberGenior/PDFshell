@@ -8,7 +8,7 @@ const PROVIDERS = new Set(['ollama', 'openai', 'anthropic', 'custom']);
 
 export async function GET() {
   if (!(await getSessionAdmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  return NextResponse.json({ models: listModels() });
+  return NextResponse.json({ models: await listModels() });
 }
 
 export async function POST(req: Request) {
@@ -23,7 +23,7 @@ export async function POST(req: Request) {
   if (!label || !PROVIDERS.has(provider) || !baseUrl || !model) {
     return NextResponse.json({ error: 'label, provider, baseUrl and model are required.' }, { status: 400 });
   }
-  const id = createModel({ label, provider, baseUrl, model, apiKey: b.apiKey?.trim() || undefined });
-  audit(admin.id, 'ai_model_create', `${provider}:${model}`);
+  const id = await createModel({ label, provider, baseUrl, model, apiKey: b.apiKey?.trim() || undefined });
+  await audit(admin.id, 'ai_model_create', `${provider}:${model}`);
   return NextResponse.json({ ok: true, id });
 }

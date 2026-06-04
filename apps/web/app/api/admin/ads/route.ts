@@ -8,7 +8,7 @@ const PLACEMENTS = new Set(['landing-banner', 'landing-grid', 'sidebar', 'popup'
 
 export async function GET() {
   if (!(await getSessionAdmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  return NextResponse.json({ ads: listAdsWithStats() });
+  return NextResponse.json({ ads: await listAdsWithStats() });
 }
 
 export async function POST(req: Request) {
@@ -21,7 +21,7 @@ export async function POST(req: Request) {
   if (!title || !PLACEMENTS.has(placement)) {
     return NextResponse.json({ error: 'title and a valid placement are required.' }, { status: 400 });
   }
-  const id = createAd({
+  const id = await createAd({
     title,
     body: b.body?.trim() || undefined,
     imageUrl: b.imageUrl?.trim() || undefined,
@@ -33,6 +33,6 @@ export async function POST(req: Request) {
     startsAt: b.startsAt || null,
     endsAt: b.endsAt || null,
   });
-  audit(admin.id, 'ad_create', `${placement}:${title}`);
+  await audit(admin.id, 'ad_create', `${placement}:${title}`);
   return NextResponse.json({ ok: true, id });
 }

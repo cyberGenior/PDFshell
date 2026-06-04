@@ -1,5 +1,5 @@
 import 'server-only';
-import { getDb } from './db';
+import { q } from './db';
 
 export interface IncomingEvent {
   type: string;
@@ -53,16 +53,14 @@ const VALID = new Set([
 ]);
 
 /** Persist one analytics event, enriching it with request-derived fields. */
-export function recordEvent(ev: IncomingEvent, headers: Headers): void {
+export async function recordEvent(ev: IncomingEvent, headers: Headers): Promise<void> {
   if (!VALID.has(ev.type)) return;
   const ua = headers.get('user-agent') ?? '';
-  getDb()
-    .prepare(
-      `INSERT INTO events
-        (type, name, visitor_id, session_id, ip, country, device, browser, referrer, meta)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    )
-    .run(
+  await q(
+    `INSERT INTO events
+       (type, name, visitor_id, session_id, ip, country, device, browser, referrer, meta)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+    [
       ev.type,
       ev.name ?? null,
       ev.visitorId ?? null,
@@ -73,5 +71,6 @@ export function recordEvent(ev: IncomingEvent, headers: Headers): void {
       browserOf(ua),
       (ev.referrer ?? headers.get('referer') ?? '').slice(0, 300) || null,
       ev.meta != null ? JSON.stringify(ev.meta).slice(0, 1000) : null,
-    );
+    ],
+  );
 }

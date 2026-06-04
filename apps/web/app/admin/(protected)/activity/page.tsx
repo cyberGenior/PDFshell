@@ -11,8 +11,8 @@ const TYPE_STYLE: Record<string, string> = {
   ad_click: 'bg-[var(--c-yellow)] text-[var(--c-yellow-ink)]',
 };
 
-export default function ActivityPage() {
-  const events = recentEvents(100);
+export default async function ActivityPage() {
+  const events = await recentEvents(100);
   return (
     <div className="flex flex-col gap-5">
       <div>

@@ -1,20 +1,22 @@
-import { getDb } from '@/lib/server/db';
+import { q1 } from '@/lib/server/db';
 import { dailyCounts, topTools, deviceSplit, topCountries } from '@/lib/server/stats';
 import { BarChart, RankBars } from '@/components/admin/Charts';
 import { Eye, Wrench, FileOutput, Users } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
-function count(sql: string): number {
-  const row = getDb().prepare(sql).get() as { c: number } | undefined;
+async function count(sql: string): Promise<number> {
+  const row = await q1<{ c: number }>(sql);
   return row?.c ?? 0;
 }
 
-export default function AdminDashboard() {
-  const views = count("SELECT COUNT(*) c FROM events WHERE type = 'page_view'");
-  const tools = count("SELECT COUNT(*) c FROM events WHERE type = 'tool_used'");
-  const conversions = count("SELECT COUNT(*) c FROM events WHERE type = 'conversion'");
-  const visitors = count('SELECT COUNT(DISTINCT visitor_id) c FROM events');
+export default async function AdminDashboard() {
+  const [views, visitors, tools, conversions] = await Promise.all([
+    count("SELECT COUNT(*)::int c FROM events WHERE type = 'page_view'"),
+    count('SELECT COUNT(DISTINCT visitor_id)::int c FROM events'),
+    count("SELECT COUNT(*)::int c FROM events WHERE type = 'tool_used'"),
+    count("SELECT COUNT(*)::int c FROM events WHERE type = 'conversion'"),
+  ]);
 
   const stats = [
     { label: 'Page views', value: views, icon: Eye, fill: 'var(--c-sky)', ink: 'var(--c-sky-ink)' },
@@ -23,7 +25,12 @@ export default function AdminDashboard() {
     { label: 'Conversions', value: conversions, icon: FileOutput, fill: 'var(--c-yellow)', ink: 'var(--c-yellow-ink)' },
   ];
 
-  const daily = dailyCounts(14);
+  const [daily, toolsData, deviceData, countriesData] = await Promise.all([
+    dailyCounts(14),
+    topTools(),
+    deviceSplit(),
+    topCountries(),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -51,9 +58,9 @@ export default function AdminDashboard() {
       </Card>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <Card title="Top tools"><RankBars data={topTools()} empty="No tool usage yet" /></Card>
-        <Card title="Devices"><RankBars data={deviceSplit()} empty="No views yet" /></Card>
-        <Card title="Top countries"><RankBars data={topCountries()} empty="No geo data yet" /></Card>
+        <Card title="Top tools"><RankBars data={toolsData} empty="No tool usage yet" /></Card>
+        <Card title="Devices"><RankBars data={deviceData} empty="No views yet" /></Card>
+        <Card title="Top countries"><RankBars data={countriesData} empty="No geo data yet" /></Card>
       </div>
     </div>
   );

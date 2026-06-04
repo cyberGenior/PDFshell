@@ -32,16 +32,20 @@ pnpm build          # static export to apps/web/out
 
 ## Admin panel
 
-PDFShell now includes a server-side **admin** (Next.js server mode + SQLite) at
+PDFShell includes a server-side **admin** (Next.js server mode + **Postgres**) at
 **`/admin`** with: site analytics (views, tool usage, devices, countries, activity
 feed), **AI model cards** (set the model the whole app uses), and a **full ad
 system** (banner / grid / sidebar / timed popup placements with impression &
 click stats).
 
+- **Database:** set `DATABASE_URL` to any Postgres (Render, Neon, Vercel Postgres,
+  Supabase, local). Tables are created automatically on first run. No writable
+  disk is needed, so it deploys cleanly to serverless/PaaS. (Local dev: `docker
+  compose --profile allinone up` starts a Postgres alongside the app.)
 - Default login: **`admin` / `ChangeMe!PDFShell`** — change it on first sign-in.
   Override the seed with `PDFSHELL_ADMIN_USER` / `PDFSHELL_ADMIN_PASS`.
-- Data persists in SQLite (`apps/web/data/pdfshell.db`); set `PDFSHELL_SECRET`
-  in production to pin the key that encrypts stored AI API keys.
+- Set `PDFSHELL_SECRET` in production to pin the key that encrypts stored AI API
+  keys (otherwise one is generated and kept in the `settings` table).
 - Tracking is full (IP/country/device/browser/visitor id). File **contents** are
   never sent to the server — only usage events and the admin's own data.
 
@@ -55,7 +59,8 @@ docker compose --profile allinone up app    # → http://localhost:8080
 ```
 
 One exposed port; the server proxies `/svc/*` to the in-container converter.
-SQLite lives in the `pdfshell-data` volume. (Large, memory-hungry build — needs a
+Admin/analytics state lives in the bundled **Postgres** (`pdfshell-pg` volume).
+(Large, memory-hungry build — needs a
 host with adequate RAM/network.)
 
 **Split setup (lighter dev path)** — static web + separate converter:
