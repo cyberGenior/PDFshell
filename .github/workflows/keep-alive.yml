@@ -13,7 +13,10 @@ name: Keep Render awake
 
 on:
   schedule:
-    - cron: '*/10 * * * *'
+    # Every 5 min (GitHub's minimum). Render spins down after ~15 min idle and
+    # GitHub often delays scheduled runs, so 5-min cadence maximises the odds of
+    # landing a ping inside each window.
+    - cron: '*/5 * * * *'
   workflow_dispatch:
 
 jobs:
