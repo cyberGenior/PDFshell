@@ -27,6 +27,14 @@ export const metadata: Metadata = {
     index: true, follow: true,
     googleBot: { index: true, follow: true, 'max-image-preview': 'large', 'max-snippet': -1, 'max-video-preview': -1 },
   },
+  // Google Search Console verification (HTML-tag method — works on *.onrender.com
+  // where you can't add a DNS TXT record). Override via env if Google issues a
+  // different token for the URL-prefix property.
+  verification: {
+    google:
+      process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION ||
+      'X-48_D6mmdlCvj7i3ZbtI5X07AtWu3guGsoReXc3-No',
+  },
 };
 
 const JSON_LD = {
