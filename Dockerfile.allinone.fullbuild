@@ -1,0 +1,62 @@
+# PDFShell — single self-sufficient image.
+# Contains everything except the optional Ollama sidecar:
+#   • Next.js server (public tools + admin + analytics + ads + SQLite)
+#   • Python conversion service (LibreOffice + Ghostscript + pdf2docx/pptx/xlsx)
+# One exposed port (3000); the Next server proxies /svc/* to the in-container
+# converter, so there's nothing else to wire up.
+#
+#   docker compose --profile allinone up app
+#
+# NOTE: large image (~2 GB) and a memory-hungry build — run on a host with
+# adequate RAM and network. Ollama stays a sidecar (model/GPU).
+
+# ---------- builder: compile the Next standalone server ----------
+FROM node:22-bookworm AS builder
+RUN corepack enable
+WORKDIR /repo
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc* ./
+COPY apps/web/package.json apps/web/package.json
+COPY packages/pdf-core/package.json packages/pdf-core/package.json
+COPY packages/ocr-engine/package.json packages/ocr-engine/package.json
+COPY packages/compress-engine/package.json packages/compress-engine/package.json
+RUN pnpm install --frozen-lockfile
+COPY . .
+# No NEXT_PUBLIC_CONVERT_URL → the client uses the same-origin /svc proxy.
+RUN pnpm --filter @pdfshell/web build
+
+# ---------- runtime: Node + LibreOffice + Ghostscript + Python ----------
+FROM node:22-bookworm AS runtime
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends \
+       libreoffice-core libreoffice-writer libreoffice-calc libreoffice-impress \
+       ghostscript fonts-dejavu fonts-liberation \
+       python3 python3-pip ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+RUN pip3 install --no-cache-dir --break-system-packages \
+       pdf2docx==0.5.8 python-pptx==1.0.2 pdfplumber==0.11.4 openpyxl==3.1.5
+
+WORKDIR /app
+# Next standalone output (monorepo layout: server at apps/web/server.js).
+COPY --from=builder /repo/apps/web/.next/standalone ./
+COPY --from=builder /repo/apps/web/.next/static ./apps/web/.next/static
+COPY --from=builder /repo/apps/web/public ./apps/web/public
+# Conversion service + launcher.
+COPY --from=builder /repo/services/convert/server.py ./convert/server.py
+COPY docker/start.sh /start.sh
+RUN chmod +x /start.sh
+
+ENV NODE_ENV=production \
+    PORT=3000 HOSTNAME=0.0.0.0 \
+    PDFSHELL_DB_PATH=/app/data/pdfshell.db \
+    PDFSHELL_TMP=/app/tmp \
+    APP_URL=http://127.0.0.1:3000 \
+    INTERNAL_CONVERT_URL=http://127.0.0.1:3001 \
+    OLLAMA_URL=http://host.docker.internal:11434 \
+    OLLAMA_MODEL=llama3.2:3b \
+    OLLAMA_NUM_GPU=0
+
+EXPOSE 3000
+VOLUME ["/app/data"]
+HEALTHCHECK --interval=30s --timeout=4s \
+  CMD node -e "require('http').get('http://localhost:3000/',r=>process.exit(r.statusCode<500?0:1)).on('error',()=>process.exit(1))"
+CMD ["/start.sh"]

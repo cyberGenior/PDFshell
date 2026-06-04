@@ -1,0 +1,97 @@
+# Local server for PDFShell.
+#   docker compose up --build   →   open http://localhost:8080
+#
+# Host port 8080 is used deliberately — port 3000 is taken by another local
+# project. Change the left-hand number below if 8080 is busy on your machine.
+services:
+  # ── The self-sufficient, single-image app (recommended) ──────────────────
+  #   docker compose --profile allinone up app
+  # Everything (web + admin + DB + LibreOffice + Ghostscript + converter) in one
+  # container on http://localhost:8080. Ollama is the only optional sidecar.
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.allinone
+    image: pdfshell-allinone
+    container_name: pdfshell-app
+    profiles: ["allinone"]
+    ports:
+      - "8080:3000"
+    environment:
+      PDFSHELL_ADMIN_USER: ${PDFSHELL_ADMIN_USER:-admin}
+      PDFSHELL_ADMIN_PASS: ${PDFSHELL_ADMIN_PASS:-ChangeMe!PDFShell}
+      PDFSHELL_SECRET: ${PDFSHELL_SECRET:-}
+      PDFSHELL_INTERNAL_TOKEN: ${PDFSHELL_INTERNAL_TOKEN:-pdfshell-internal}
+      OLLAMA_URL: ${OLLAMA_URL:-http://host.docker.internal:11434}
+      # Small model on the GPU ≈ 60 tok/s (vs ~3 on CPU); 1b fits ~1.7GB VRAM.
+      # If you switch the active model to 3b/8b and it won't fit the GPU, the
+      # converter falls back to faithful image slides automatically.
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:1b}
+      OLLAMA_NUM_GPU: ${OLLAMA_NUM_GPU:-99}
+      OLLAMA_NUM_CTX: ${OLLAMA_NUM_CTX:-2048}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - pdfshell-data:/app/data
+      # Mount the conversion/edit service so changes apply on restart without a
+      # full image rebuild (also dodges Docker COPY-layer caching).
+      - ./services/convert/server.py:/app/convert/server.py:ro
+    restart: unless-stopped
+
+  # ── Split setup (current default): static web + separate converter ───────
+  # Stop these before starting the all-in-one `app` (both use port 8080).
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: pdfshell-web
+    container_name: pdfshell-web
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+
+  # Self-hosted LibreOffice conversion service for PDF↔Office (PDF→Word/Excel/
+  # PowerPoint and back). Optional — the on-device tools work without it. The
+  # browser calls it at http://localhost:3001 (see NEXT_PUBLIC_CONVERT_URL).
+  # Building it requires network/apt access for LibreOffice.
+  convert:
+    build:
+      context: .
+      dockerfile: services/convert/Dockerfile
+    image: pdfshell-convert
+    container_name: pdfshell-convert
+    # Host 3017 (3001 is taken by another local project). The web app is built
+    # with NEXT_PUBLIC_CONVERT_URL=http://localhost:3017 to match.
+    ports:
+      - "3017:3001"
+    environment:
+      # Self-hosted local LLM for the opt-in "Enhance with AI" conversions.
+      # Defaults to an Ollama already running on the host. To use the bundled
+      # container instead, set OLLAMA_URL=http://ollama:11434 and start it with
+      # `docker compose --profile bundled-ollama up`.
+      OLLAMA_URL: ${OLLAMA_URL:-http://host.docker.internal:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:3b}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # Mount the server so changes apply on restart without a full image rebuild
+    # (also a graceful fallback on low-memory hosts where image builds fail).
+    volumes:
+      - ./services/convert/server.py:/app/server.py:ro
+    restart: unless-stopped
+
+  # Optional bundled local LLM, for hosts without their own Ollama.
+  # Start with:  docker compose --profile bundled-ollama up
+  # Then pull a model: docker compose exec ollama ollama pull llama3.2:3b
+  ollama:
+    image: ollama/ollama
+    container_name: pdfshell-ollama
+    profiles: ["bundled-ollama"]
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    restart: unless-stopped
+
+volumes:
+  ollama-models:
+  pdfshell-data:

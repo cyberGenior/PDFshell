@@ -1,0 +1,28 @@
+# Never ship local state into the build context — keeps the build fast and the
+# image clean, and avoids leaking local config.
+**/node_modules
+**/.next
+**/out
+**/dist
+**/.turbo
+**/coverage
+**/test-results
+**/playwright-report
+.git
+.gitignore
+*.md
+.claude
+.skill-extract
+**/.env*
+Dockerfile
+.dockerignore
+
+# …but these prebuilt outputs ARE needed by the Docker images (last match wins,
+# so these negations must come after the broad ignores above).
+!apps/web/out
+!apps/web/out/**
+!apps/web/.next
+!apps/web/.next/standalone
+!apps/web/.next/standalone/**
+!apps/web/.next/static
+!apps/web/.next/static/**

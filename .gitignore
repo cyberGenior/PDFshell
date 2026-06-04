@@ -1,0 +1,45 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# builds
+dist/
+.next/
+out/
+build/
+coverage/
+
+# turbo
+.turbo/
+
+# env
+.env
+.env.local
+.env.*.local
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# os / editor
+.DS_Store
+Thumbs.db
+*.tsbuildinfo
+
+# playwright
+test-results/
+playwright-report/
+playwright/.cache/
+
+# local Claude Code harness state (skills, scheduled-task locks, etc.)
+.claude/
+
+# visual smoke screenshots
+apps/web/e2e/*.png
+
+# admin SQLite database (runtime data)
+apps/web/data/
+*.db
+*.db-shm
+*.db-wal

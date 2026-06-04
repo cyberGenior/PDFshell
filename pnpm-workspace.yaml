@@ -1,0 +1,11 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+# Approve native/postinstall build scripts. esbuild backs Vitest; sharp and
+# tesseract.js fetch optional binaries we don't need at build time.
+allowBuilds:
+  core-js: false
+  esbuild: true
+  sharp: false
+  tesseract.js: false
