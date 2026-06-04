@@ -1,7 +1,9 @@
 import type { Metadata } from 'next';
 
 export const SITE_NAME = 'PDFShell';
-export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://pdfshell.onrender.com').replace(/\/$/, '');
+// `||` (not `??`): the Docker build passes an EMPTY string when unset, which
+// `??` would keep — then `new URL('')` in metadataBase throws and the build dies.
+export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://pdfshell.onrender.com').replace(/\/$/, '');
 export const SITE_DESCRIPTION =
   'Merge, split, compress, edit, OCR and convert PDFs — free and private, right in your browser. Open-source, no sign-up, no watermark; your files never leave your device.';
 
