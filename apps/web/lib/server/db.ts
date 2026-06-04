@@ -119,6 +119,22 @@ function migrate(db: DatabaseSync): void {
     console.log(
       `[pdfshell] Seeded default admin "${DEFAULT_ADMIN_USER}" — change the password on first login.`,
     );
+  } else if (process.env.PDFSHELL_ADMIN_PASS) {
+    // Self-heal: if PDFSHELL_ADMIN_PASS is set and the seeded admin hasn't
+    // changed their password in-panel yet (must_change_password = 1), keep it in
+    // sync with the env. This lets you (re)set the admin password by setting the
+    // env var and restarting — no shell needed. Once you change it in the panel
+    // (must_change_password → 0), the env no longer overrides it.
+    const row = db
+      .prepare('SELECT id, must_change_password FROM admins WHERE username = ?')
+      .get(DEFAULT_ADMIN_USER) as { id: number; must_change_password: number } | undefined;
+    if (row && row.must_change_password === 1) {
+      db.prepare('UPDATE admins SET password_hash = ? WHERE id = ?').run(
+        hashPassword(DEFAULT_ADMIN_PASS),
+        row.id,
+      );
+      console.log(`[pdfshell] Synced admin "${DEFAULT_ADMIN_USER}" password from PDFSHELL_ADMIN_PASS.`);
+    }
   }
 }
 
