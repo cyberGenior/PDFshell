@@ -1,5 +1,5 @@
 import 'server-only';
-import { q, q1 } from './db';
+import { getDb } from './db';
 
 export type Placement = 'landing-banner' | 'landing-grid' | 'sidebar' | 'popup';
 
@@ -36,13 +36,14 @@ export interface AdWithStats extends PublicAd {
   clicks: number;
 }
 
-export async function createAd(a: AdInput): Promise<number> {
-  const row = await q1<{ id: number }>(
-    `INSERT INTO ads
-       (title, body, image_url, cta_label, link_url, placement, popup_delay_secs, popup_frequency, starts_at, ends_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-     RETURNING id`,
-    [
+export function createAd(a: AdInput): number {
+  const info = getDb()
+    .prepare(
+      `INSERT INTO ads
+        (title, body, image_url, cta_label, link_url, placement, popup_delay_secs, popup_frequency, starts_at, ends_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
       a.title,
       a.body ?? null,
       a.imageUrl ?? null,
@@ -53,39 +54,39 @@ export async function createAd(a: AdInput): Promise<number> {
       a.popupFrequency ?? 'session',
       a.startsAt ?? null,
       a.endsAt ?? null,
-    ],
-  );
-  return row!.id;
+    );
+  return Number(info.lastInsertRowid);
 }
 
-export async function setAdEnabled(id: number, enabled: boolean): Promise<void> {
-  await q('UPDATE ads SET enabled = $1 WHERE id = $2', [enabled ? 1 : 0, id]);
+export function setAdEnabled(id: number, enabled: boolean): void {
+  getDb().prepare('UPDATE ads SET enabled = ? WHERE id = ?').run(enabled ? 1 : 0, id);
 }
 
-export async function deleteAd(id: number): Promise<void> {
-  await q('DELETE FROM ads WHERE id = $1', [id]);
+export function deleteAd(id: number): void {
+  getDb().prepare('DELETE FROM ads WHERE id = ?').run(id);
 }
 
 /** Active ads for a placement: enabled and within their schedule window. */
-export async function activeAdsByPlacement(placement: string): Promise<PublicAd[]> {
-  return q<PublicAd>(
-    `SELECT id, title, body, image_url, cta_label, link_url, placement, popup_delay_secs, popup_frequency
-     FROM ads
-     WHERE enabled = 1 AND placement = $1
-       AND (starts_at IS NULL OR starts_at <= now())
-       AND (ends_at   IS NULL OR ends_at   >= now())
-     ORDER BY id DESC`,
-    [placement],
-  );
+export function activeAdsByPlacement(placement: string): PublicAd[] {
+  return getDb()
+    .prepare(
+      `SELECT id, title, body, image_url, cta_label, link_url, placement, popup_delay_secs, popup_frequency
+       FROM ads
+       WHERE enabled = 1 AND placement = ?
+         AND (starts_at IS NULL OR datetime(starts_at) <= datetime('now'))
+         AND (ends_at   IS NULL OR datetime(ends_at)   >= datetime('now'))
+       ORDER BY id DESC`,
+    )
+    .all(placement) as unknown as PublicAd[];
 }
 
-export async function listAdsWithStats(): Promise<AdWithStats[]> {
-  return q<AdWithStats>(
-    `SELECT a.id, a.title, a.body, a.image_url, a.cta_label, a.link_url, a.placement,
-            a.popup_delay_secs, a.popup_frequency, a.enabled,
-            a.starts_at::text AS starts_at, a.ends_at::text AS ends_at,
-        (SELECT COUNT(*)::int FROM events e WHERE e.type='ad_impression' AND e.name = a.id::text) AS impressions,
-        (SELECT COUNT(*)::int FROM events e WHERE e.type='ad_click'      AND e.name = a.id::text) AS clicks
-     FROM ads a ORDER BY a.id DESC`,
-  );
+export function listAdsWithStats(): AdWithStats[] {
+  return getDb()
+    .prepare(
+      `SELECT a.*,
+        (SELECT COUNT(*) FROM events e WHERE e.type='ad_impression' AND e.name = CAST(a.id AS TEXT)) AS impressions,
+        (SELECT COUNT(*) FROM events e WHERE e.type='ad_click'      AND e.name = CAST(a.id AS TEXT)) AS clicks
+       FROM ads a ORDER BY a.id DESC`,
+    )
+    .all() as unknown as AdWithStats[];
 }

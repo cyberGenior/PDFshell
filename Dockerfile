@@ -65,17 +65,22 @@ RUN chmod +x /start.sh
 
 ENV NODE_ENV=production \
     PORT=3000 HOSTNAME=0.0.0.0 \
+    PDFSHELL_DB_PATH=/app/data/pdfshell.db \
     PDFSHELL_TMP=/app/tmp \
     APP_URL=http://127.0.0.1:3000 \
     INTERNAL_CONVERT_URL=http://127.0.0.1:3001 \
     OLLAMA_URL=http://host.docker.internal:11434 \
     OLLAMA_MODEL=llama3.2:3b \
-    OLLAMA_NUM_GPU=0
-# State lives in Postgres — set DATABASE_URL at runtime (no writable disk needed).
+    OLLAMA_NUM_GPU=0 \
+    NODE_OPTIONS=--experimental-sqlite
+# Admin/analytics store is embedded SQLite at PDFSHELL_DB_PATH. node:sqlite needs
+# --experimental-sqlite on Node 22. Mount a disk on /app/data to persist it
+# (without one it works but resets on each deploy/restart).
 
 # Render/most PaaS inject $PORT; the launcher binds Next to it (converter stays
 # on :3001 internally). EXPOSE is documentation only.
 EXPOSE 3000
+VOLUME ["/app/data"]
 HEALTHCHECK --interval=30s --timeout=4s \
   CMD node -e "require('http').get('http://localhost:'+(process.env.PORT||3000)+'/',r=>process.exit(r.statusCode<500?0:1)).on('error',()=>process.exit(1))"
 CMD ["/start.sh"]

@@ -15,13 +15,9 @@ services:
     image: pdfshell-allinone
     container_name: pdfshell-app
     profiles: ["allinone"]
-    depends_on:
-      - db
     ports:
       - "8080:3000"
     environment:
-      # Admin/analytics/ads/AI store. Points at the bundled Postgres below.
-      DATABASE_URL: ${DATABASE_URL:-postgres://pdfshell:pdfshell@db:5432/pdfshell}
       PDFSHELL_ADMIN_USER: ${PDFSHELL_ADMIN_USER:-admin}
       PDFSHELL_ADMIN_PASS: ${PDFSHELL_ADMIN_PASS:-ChangeMe!PDFShell}
       PDFSHELL_SECRET: ${PDFSHELL_SECRET:-}
@@ -36,22 +32,11 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
+      # Persist the SQLite admin/analytics DB across restarts.
+      - pdfshell-data:/app/data
       # Mount the conversion/edit service so changes apply on restart without a
       # full image rebuild (also dodges Docker COPY-layer caching).
       - ./services/convert/server.py:/app/convert/server.py:ro
-    restart: unless-stopped
-
-  # Postgres for the admin/analytics/ads/AI store (replaces the old SQLite file).
-  db:
-    image: postgres:16-alpine
-    container_name: pdfshell-db
-    profiles: ["allinone"]
-    environment:
-      POSTGRES_USER: pdfshell
-      POSTGRES_PASSWORD: pdfshell
-      POSTGRES_DB: pdfshell
-    volumes:
-      - pdfshell-pg:/var/lib/postgresql/data
     restart: unless-stopped
 
   # ── Split setup (current default): static web + separate converter ───────
@@ -110,4 +95,4 @@ services:
 
 volumes:
   ollama-models:
-  pdfshell-pg:
+  pdfshell-data:

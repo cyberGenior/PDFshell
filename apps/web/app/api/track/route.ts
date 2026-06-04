@@ -8,7 +8,7 @@ export const runtime = 'nodejs';
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    await recordEvent(body, req.headers);
+    recordEvent(body, req.headers);
   } catch {
     /* swallow — analytics is non-critical */
   }

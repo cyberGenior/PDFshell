@@ -13,7 +13,7 @@ export async function GET(req: Request) {
   if (req.headers.get('x-internal-token') !== token) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
-  const active = await getActiveModel();
+  const active = getActiveModel();
   if (!active) return NextResponse.json({ active: null });
   return NextResponse.json({ active });
 }

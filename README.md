@@ -32,16 +32,17 @@ pnpm build          # static export to apps/web/out
 
 ## Admin panel
 
-PDFShell includes a server-side **admin** (Next.js server mode + **Postgres**) at
-**`/admin`** with: site analytics (views, tool usage, devices, countries, activity
-feed), **AI model cards** (set the model the whole app uses), and a **full ad
-system** (banner / grid / sidebar / timed popup placements with impression &
-click stats).
+PDFShell includes a server-side **admin** (Next.js server mode + embedded
+**SQLite**) at **`/admin`** with: site analytics (views, tool usage, devices,
+countries, activity feed), **AI model cards** (set the model the whole app uses),
+and a **full ad system** (banner / grid / sidebar / timed popup placements with
+impression & click stats).
 
-- **Database:** set `DATABASE_URL` to any Postgres (Render, Neon, Vercel Postgres,
-  Supabase, local). Tables are created automatically on first run. No writable
-  disk is needed, so it deploys cleanly to serverless/PaaS. (Local dev: `docker
-  compose --profile allinone up` starts a Postgres alongside the app.)
+- **Database:** embedded SQLite via Node's built-in `node:sqlite` (no native
+  build, no external DB) at `PDFSHELL_DB_PATH` (default `data/pdfshell.db`).
+  Tables + the default admin are created automatically on first run. **Mount a
+  persistent disk on `/app/data`** to keep data across deploys/restarts (on hosts
+  without a disk it still runs, but the DB resets on restart).
 - Default login: **`admin` / `ChangeMe!PDFShell`** — change it on first sign-in.
   Override the seed with `PDFSHELL_ADMIN_USER` / `PDFSHELL_ADMIN_PASS`.
 - Set `PDFSHELL_SECRET` in production to pin the key that encrypts stored AI API

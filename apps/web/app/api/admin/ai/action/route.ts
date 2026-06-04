@@ -13,12 +13,12 @@ export async function POST(req: Request) {
 
   switch (action) {
     case 'activate':
-      await activateModel(id);
-      await audit(admin.id, 'ai_model_activate', String(id));
+      activateModel(id);
+      audit(admin.id, 'ai_model_activate', String(id));
       return NextResponse.json({ ok: true });
     case 'delete':
-      await deleteModel(id);
-      await audit(admin.id, 'ai_model_delete', String(id));
+      deleteModel(id);
+      audit(admin.id, 'ai_model_delete', String(id));
       return NextResponse.json({ ok: true });
     case 'test':
       return NextResponse.json(await testModel(id));

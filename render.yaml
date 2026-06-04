@@ -1,22 +1,13 @@
-# Render Blueprint for PDFShell — all-in-one app + a managed Postgres.
+# Render Blueprint for PDFShell — single self-sufficient all-in-one service.
 #
 # Deploy: Render Dashboard → New + → Blueprint → pick this repo. Render reads
-# this file and provisions the database + service below. (The root ./Dockerfile
-# is also the canonical build-from-source image, so a plain Docker service works
-# too — just add a Postgres and set DATABASE_URL.)
+# this file and provisions the service below. (The root ./Dockerfile is also the
+# canonical build-from-source image, so a plain Docker service works too.)
 #
-# The web service contains everything except the optional Ollama AI sidecar:
-# Next.js web + admin, and the Python converter (LibreOffice, Ghostscript,
-# PyMuPDF, Tesseract, pdf2docx). State (admin, analytics, ads, AI cards,
-# sessions) lives in Postgres — no disk required, so it scales cleanly.
-
-databases:
-  - name: pdfshell-db
-    databaseName: pdfshell
-    user: pdfshell
-    # Free Postgres expires after ~30 days on Render — switch to a paid plan for
-    # anything you want to keep. Bump as needed.
-    plan: free
+# Everything except the optional Ollama AI sidecar lives in ONE container:
+# Next.js web + admin, the Python converter (LibreOffice, Ghostscript, PyMuPDF,
+# Tesseract, pdf2docx), and the admin/analytics store in embedded SQLite on a
+# persistent disk — no external database to wire up.
 
 services:
   - type: web
@@ -29,13 +20,13 @@ services:
     # on conversions. Standard (2 GB) is the safe floor — adjust to taste.
     plan: standard
     healthCheckPath: /healthz
+    # Persistent disk for the SQLite admin/analytics DB. Disks require a paid
+    # instance; without one the app still runs but the DB resets on each deploy.
+    disk:
+      name: pdfshell-data
+      mountPath: /app/data
+      sizeGB: 1
     envVars:
-      # Admin + analytics + ads + AI cards store. Render injects the managed
-      # Postgres connection string here.
-      - key: DATABASE_URL
-        fromDatabase:
-          name: pdfshell-db
-          property: connectionString
       - key: PDFSHELL_ADMIN_USER
         value: admin
       # Set a real password in the dashboard before first sign-in.

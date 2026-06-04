@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { q1, verifyPassword } from '@/lib/server/db';
+import { getDb, verifyPassword } from '@/lib/server/db';
 import { createSession, audit } from '@/lib/server/auth';
 
 export const runtime = 'nodejs';
@@ -17,27 +17,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Username and password are required.' }, { status: 400 });
   }
 
-  try {
-    const admin = await q1<{ id: number; password_hash: string }>(
-      'SELECT id, password_hash FROM admins WHERE username = $1',
-      [username],
-    );
+  const admin = getDb()
+    .prepare('SELECT id, password_hash FROM admins WHERE username = ?')
+    .get(username) as { id: number; password_hash: string } | undefined;
 
-    // Same response whether the user exists or not (avoid user enumeration).
-    if (!admin || !verifyPassword(password, admin.password_hash)) {
-      return NextResponse.json({ error: 'Incorrect username or password.' }, { status: 401 });
-    }
-
-    await createSession(admin.id);
-    await audit(admin.id, 'login', username);
-    return NextResponse.json({ ok: true });
-  } catch (e) {
-    // Almost always a database problem (DATABASE_URL unset/unreachable). Return
-    // JSON so the client shows a real message instead of failing to parse.
-    console.error('[pdfshell] admin login failed:', e);
-    return NextResponse.json(
-      { error: 'Sign-in is temporarily unavailable — the database is unreachable. Check DATABASE_URL.' },
-      { status: 503 },
-    );
+  // Same response whether the user exists or not (avoid user enumeration).
+  if (!admin || !verifyPassword(password, admin.password_hash)) {
+    return NextResponse.json({ error: 'Incorrect username or password.' }, { status: 401 });
   }
+
+  await createSession(admin.id);
+  audit(admin.id, 'login', username);
+  return NextResponse.json({ ok: true });
 }
