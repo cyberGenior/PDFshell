@@ -43,7 +43,7 @@ services:
   web:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: docker/Dockerfile.staticweb
     image: pdfshell-web
     container_name: pdfshell-web
     ports:

@@ -1,0 +1,16 @@
+# Legacy: fast local-serve image over a pre-built STATIC export (apps/web/out).
+#
+# Kept only for the old "split" docker-compose `web` service. The app now runs in
+# server mode (admin + SQLite + /svc proxy), so the static export is not produced
+# by the default build — use the root ./Dockerfile (all-in-one) for real deploys.
+#
+#     pnpm --filter @pdfshell/web build   # only if you re-enable static export
+#     docker compose up --build           # → http://localhost:8080
+FROM python:3.12-slim
+WORKDIR /site
+COPY apps/web/out /site
+COPY docker/serve.py /serve.py
+EXPOSE 80
+HEALTHCHECK --interval=30s --timeout=3s \
+  CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost/').status==200 else 1)" || exit 1
+CMD ["python", "/serve.py"]

@@ -1,8 +1,8 @@
 # Render Blueprint for PDFShell — the self-sufficient all-in-one image.
 #
 # Deploy: Render Dashboard → New + → Blueprint → pick this repo. Render reads
-# this file and provisions the service below. (If you created the service
-# manually, instead set its Dockerfile Path to ./Dockerfile.allinone.fullbuild.)
+# this file and provisions the service below. (The root ./Dockerfile is also the
+# canonical build-from-source image, so a plain Docker service works too.)
 #
 # This one service contains everything except the optional Ollama AI sidecar:
 # Next.js web + admin, the Python converter (LibreOffice, Ghostscript, PyMuPDF,
@@ -11,9 +11,9 @@ services:
   - type: web
     name: pdfshell
     runtime: docker
-    # Build FROM SOURCE — the root ./Dockerfile expects a prebuilt apps/web/out
-    # (gitignored) and will fail on a clean clone. This one runs pnpm build.
-    dockerfilePath: ./Dockerfile.allinone.fullbuild
+    # Build FROM SOURCE: the root ./Dockerfile is the all-in-one image (pnpm
+    # build → Next standalone + LibreOffice/Ghostscript/PyMuPDF/Tesseract).
+    dockerfilePath: ./Dockerfile
     # LibreOffice + Next + Python is memory-hungry; 512 MB (starter) tends to OOM
     # on conversions. Standard (2 GB) is the safe floor — adjust to taste.
     plan: standard
