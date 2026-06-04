@@ -51,3 +51,10 @@ services:
       # Ollama host (needs a GPU box) to enable it.
       - key: OLLAMA_URL
         sync: false
+      # Optional Google Analytics 4 + AdSense. NEXT_PUBLIC_* are inlined at build,
+      # and Render supplies these to the Docker build as args — set the values
+      # here (or in the dashboard) and redeploy to (de)activate.
+      - key: NEXT_PUBLIC_GA_ID
+        sync: false
+      - key: NEXT_PUBLIC_ADSENSE_CLIENT
+        sync: false

@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { ServiceWorkerRegistrar } from '@/components/ServiceWorkerRegistrar';
+import { GoogleAnalytics } from '@/components/analytics/GoogleAnalytics';
+import { AdSenseScript } from '@/components/ads/AdSense';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -25,6 +27,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" suppressHydrationWarning>
       <body className="min-h-dvh font-sans antialiased">
         <ServiceWorkerRegistrar />
+        <GoogleAnalytics />
+        <AdSenseScript />
         {children}
       </body>
     </html>

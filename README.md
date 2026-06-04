@@ -49,6 +49,29 @@ click stats).
 - Tracking is full (IP/country/device/browser/visitor id). File **contents** are
   never sent to the server — only usage events and the admin's own data.
 
+## Google Analytics & AdSense
+
+Both are opt-in via env vars (nothing loads until set) and run client-side, so
+they work on any host. **`NEXT_PUBLIC_*` are inlined at build time**, so set them
+before building (Render passes service env vars to the Docker build as args; for
+a local image use `--build-arg`).
+
+- **Google Analytics 4:** set `NEXT_PUBLIC_GA_ID=G-XXXXXXXXXX`. Loads `gtag.js`
+  after interactive and sends a page_view on every route change (admin excluded).
+- **AdSense:** set `NEXT_PUBLIC_ADSENSE_CLIENT=ca-pub-XXXXXXXXXXXXXXXX`. This loads
+  the AdSense library (Auto Ads work as configured in your AdSense dashboard) and
+  serves `/ads.txt` automatically. For manual placements, drop a unit where you
+  want it:
+
+  ```tsx
+  import { AdSenseUnit } from '@/components/ads/AdSense';
+  <AdSenseUnit slot="1234567890" />   // slot id from your AdSense dashboard
+  ```
+
+> File **contents** still never leave the device; GA/AdSense only see standard
+> web analytics/ad-serving data, and the scripts load lazily so the tools aren't
+> blocked.
+
 ## Run it with Docker
 
 **Recommended — single self-sufficient image** (web + admin + DB + LibreOffice +
