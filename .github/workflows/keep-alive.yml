@@ -1,0 +1,36 @@
+name: Keep Render awake
+
+# Render's free tier spins a service down after ~15 min with no traffic, so the
+# next visitor waits ~30–60s for a cold start. This pings the app on a schedule
+# to keep it warm. Set a repo variable KEEPALIVE_URL to your health URL, e.g.
+# https://pdfshell.onrender.com/healthz  (Settings → Secrets and variables →
+# Actions → Variables). If unset, the job no-ops.
+#
+# Note: GitHub's scheduled runs are best-effort (can be delayed or skipped under
+# load), so the occasional cold start may still slip through. The only guaranteed
+# fix is a paid Render plan (no spin-down) or a dedicated uptime service
+# (UptimeRobot / cron-job.org) hitting /healthz every 5–10 min.
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping /healthz
+        run: |
+          URL="${{ vars.KEEPALIVE_URL }}"
+          if [ -z "$URL" ]; then
+            echo "KEEPALIVE_URL not set — skipping. Add it as a repo Actions variable to enable."
+            exit 0
+          fi
+          for i in 1 2 3; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 75 "$URL" || true)
+            echo "attempt $i → HTTP $code"
+            [ "$code" = "200" ] && exit 0
+            sleep 20
+          done
+          echo "::warning::$URL did not return 200 after 3 attempts"

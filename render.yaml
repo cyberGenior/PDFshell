@@ -28,7 +28,7 @@ services:
     # LibreOffice + Next + Python is memory-hungry; 512 MB (starter) tends to OOM
     # on conversions. Standard (2 GB) is the safe floor — adjust to taste.
     plan: standard
-    healthCheckPath: /
+    healthCheckPath: /healthz
     envVars:
       # Admin + analytics + ads + AI cards store. Render injects the managed
       # Postgres connection string here.
@@ -51,9 +51,12 @@ services:
       # Ollama host (needs a GPU box) to enable it.
       - key: OLLAMA_URL
         sync: false
-      # Optional Google Analytics 4 + AdSense. NEXT_PUBLIC_* are inlined at build,
-      # and Render supplies these to the Docker build as args — set the values
-      # here (or in the dashboard) and redeploy to (de)activate.
+      # Canonical/OG URLs + robots.txt + sitemap.xml. Set to your real domain
+      # (e.g. https://pdfshell.onrender.com or a custom domain). NEXT_PUBLIC_* are
+      # inlined at build, and Render supplies them to the Docker build as args.
+      - key: NEXT_PUBLIC_SITE_URL
+        sync: false
+      # Optional Google Analytics 4 + AdSense. Set and redeploy to (de)activate.
       - key: NEXT_PUBLIC_GA_ID
         sync: false
       - key: NEXT_PUBLIC_ADSENSE_CLIENT

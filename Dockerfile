@@ -27,9 +27,13 @@ COPY . .
 # NEXT_PUBLIC_* are inlined at build, so they must be present here. Render passes
 # matching service env vars as build args automatically; locally:
 #   docker build --build-arg NEXT_PUBLIC_GA_ID=G-XXXX --build-arg NEXT_PUBLIC_ADSENSE_CLIENT=ca-pub-XXXX .
+# NEXT_PUBLIC_SITE_URL → canonical/OG URLs, robots.txt and sitemap.xml. Set it to
+# your real domain so the sitemap points crawlers at the right place.
+ARG NEXT_PUBLIC_SITE_URL=
 ARG NEXT_PUBLIC_GA_ID=
 ARG NEXT_PUBLIC_ADSENSE_CLIENT=
-ENV NEXT_PUBLIC_GA_ID=$NEXT_PUBLIC_GA_ID \
+ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL \
+    NEXT_PUBLIC_GA_ID=$NEXT_PUBLIC_GA_ID \
     NEXT_PUBLIC_ADSENSE_CLIENT=$NEXT_PUBLIC_ADSENSE_CLIENT
 # No NEXT_PUBLIC_CONVERT_URL → the client uses the same-origin /svc proxy.
 RUN pnpm --filter @pdfshell/web build

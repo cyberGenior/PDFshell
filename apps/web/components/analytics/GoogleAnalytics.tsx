@@ -4,8 +4,9 @@ import Script from 'next/script';
 import { usePathname } from 'next/navigation';
 import { useEffect } from 'react';
 
-// Set NEXT_PUBLIC_GA_ID (e.g. G-XXXXXXXXXX) to enable. Baked at build time.
-const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
+// GA4 measurement id. Defaults to the project's tag so analytics works without
+// extra Render build-arg config; override with NEXT_PUBLIC_GA_ID if you fork.
+const GA_ID = process.env.NEXT_PUBLIC_GA_ID || 'G-QGT6Z51E3P';
 
 declare global {
   interface Window {

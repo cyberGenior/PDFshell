@@ -22,8 +22,18 @@ export default function AdminLoginPage() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ username, password }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? 'Login failed.');
+      // The server may return an empty body on a crash (e.g. DB down) — parse
+      // defensively so the user sees a real message, not "Unexpected end of JSON".
+      const text = await res.text();
+      let data: { error?: string } = {};
+      if (text) {
+        try {
+          data = JSON.parse(text);
+        } catch {
+          data = { error: text.slice(0, 200) };
+        }
+      }
+      if (!res.ok) throw new Error(data.error ?? `Sign-in failed (HTTP ${res.status}).`);
       router.replace('/admin');
       router.refresh();
     } catch (err) {

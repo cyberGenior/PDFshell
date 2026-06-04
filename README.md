@@ -49,6 +49,38 @@ click stats).
 - Tracking is full (IP/country/device/browser/visitor id). File **contents** are
   never sent to the server — only usage events and the admin's own data.
 
+## SEO
+
+Set **`NEXT_PUBLIC_SITE_URL`** to your real domain (it's inlined at build) — it
+drives canonical/Open-Graph URLs, `/robots.txt` and `/sitemap.xml`. Included:
+
+- **Per-page titles + descriptions** for every tool (`lib/seo.ts`), a global title
+  template and rich default description, Open Graph + Twitter cards.
+- **`/sitemap.xml`** (landing + all tool routes) and **`/robots.txt`** (indexes the
+  public site, blocks `/admin`, `/api`, `/svc`).
+- **JSON-LD** `WebApplication` structured data with the full feature list.
+
+After deploying, submit the site in **Google Search Console** and add the sitemap
+(`https://your-domain/sitemap.xml`) for fastest indexing. (Backlinks are off-site —
+earn them by listing PDFShell in tool directories, GitHub, and relevant communities;
+code can't create them.)
+
+## Keep the app warm (Render free tier)
+
+Render free services **spin down after ~15 min idle** (next visitor waits ~30–60s).
+Mitigations, in order of reliability:
+
+1. **Paid plan** — Render Starter+ never spins down (the real fix).
+2. **External pinger** — point [UptimeRobot](https://uptimerobot.com) or
+   [cron-job.org](https://cron-job.org) at `https://your-domain/healthz` every 5 min.
+3. **Bundled GitHub Action** — `.github/workflows/keep-alive.yml` pings every 10 min.
+   Enable it by setting a repo **Actions variable** `KEEPALIVE_URL` to your
+   `/healthz` URL (Settings → Secrets and variables → Actions → Variables).
+
+`/healthz` is a no-DB liveness probe (also Render's health check). Note: scheduled
+pings are best-effort, so an occasional cold start can still slip through — only a
+paid plan removes spin-down entirely.
+
 ## Google Analytics & AdSense
 
 Both are opt-in via env vars (nothing loads until set) and run client-side, so
