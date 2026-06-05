@@ -1,0 +1,26 @@
+name: Health check
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'   # every 15 min
+  workflow_dispatch:          # lets you run it manually
+  push:
+    branches: [main]          # verify right after a deploy
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the site is healthy
+        run: |
+          URL="${{ vars.HEALTHCHECK_URL || 'https://pdfshell.onrender.com' }}"
+          fail=0
+          check () {
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 90 "$1" || echo 000)
+            echo "$1 -> $code"
+            [ "$code" = "200" ] || fail=1
+          }
+          check "$URL/healthz"
+          check "$URL/"
+          check "$URL/sitemap.xml"
+          if [ "$fail" = "1" ]; then echo "::error::site unhealthy"; exit 1; fi
