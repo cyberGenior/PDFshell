@@ -52,3 +52,6 @@ services:
         sync: false
       - key: NEXT_PUBLIC_ADSENSE_CLIENT
         sync: false
+      # Optional Bing Webmaster verification (or just import from GSC instead).
+      - key: NEXT_PUBLIC_BING_VERIFICATION
+        sync: false

@@ -1,8 +1,14 @@
 ﻿import type { Metadata } from 'next';
 import { pageMeta } from '@/lib/seo';
+import { ToolSeoContent } from '@/components/seo/ToolSeoContent';
 
 export const metadata: Metadata = pageMeta('/compress');
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  return children;
+  return (
+    <>
+      {children}
+      <ToolSeoContent path="/compress" />
+    </>
+  );
 }

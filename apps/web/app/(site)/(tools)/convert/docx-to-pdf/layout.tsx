@@ -1,8 +1,14 @@
 ﻿import type { Metadata } from 'next';
 import { pageMeta } from '@/lib/seo';
+import { ToolSeoContent } from '@/components/seo/ToolSeoContent';
 
 export const metadata: Metadata = pageMeta('/convert/docx-to-pdf');
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  return children;
+  return (
+    <>
+      {children}
+      <ToolSeoContent path="/convert/docx-to-pdf" />
+    </>
+  );
 }

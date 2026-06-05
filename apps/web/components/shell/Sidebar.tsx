@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Home, ShieldCheck, Github, X } from 'lucide-react';
+import { Home, ShieldCheck, Github, X, BookOpen } from 'lucide-react';
 import { TOOLS } from '@/lib/tools';
 import { IconTile } from '@/components/ui/icon-tile';
 import { cn } from '@/lib/utils';
@@ -17,6 +17,7 @@ interface NavItem {
 }
 
 const HOME: NavItem = { href: '/', label: 'Home', icon: Home, ready: true };
+const GUIDES_ITEM: NavItem = { href: '/guides', label: 'Guides', icon: BookOpen, ready: true };
 const TOOL_ITEMS: NavItem[] = TOOLS.map((t) => ({
   href: `/${t.slug}`,
   label: t.name,
@@ -76,11 +77,14 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             </div>
           </>
         )}
+
+        <Group label="Learn" />
+        <NavLink item={GUIDES_ITEM} active={isActive(GUIDES_ITEM.href)} onNavigate={onNavigate} />
       </nav>
 
       <div className="flex flex-col gap-2">
         <a
-          href="https://github.com"
+          href="https://github.com/cyberGenior/PDFshell"
           target="_blank"
           rel="noreferrer"
           className="flex items-center gap-3 rounded-xl px-2 py-2 text-sm text-[var(--muted-foreground)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--foreground)]"

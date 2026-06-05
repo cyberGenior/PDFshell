@@ -57,14 +57,25 @@ drives canonical/Open-Graph URLs, `/robots.txt` and `/sitemap.xml`. Included:
 
 - **Per-page titles + descriptions** for every tool (`lib/seo.ts`), a global title
   template and rich default description, Open Graph + Twitter cards.
-- **`/sitemap.xml`** (landing + all tool routes) and **`/robots.txt`** (indexes the
+- **On-page content + FAQ** under each tool (`lib/toolContent.ts`) with **FAQPage
+  JSON-LD** — fixes "thin content" and can win FAQ rich results.
+- **`/guides`** long-tail how-to articles (`lib/guides.ts`) with Article + FAQ
+  schema, cross-linked to the tools.
+- **`/sitemap.xml`** (landing + tools + guides) and **`/robots.txt`** (indexes the
   public site, blocks `/admin`, `/api`, `/svc`).
-- **JSON-LD** `WebApplication` structured data with the full feature list.
+- **JSON-LD** `WebApplication` structured data + an auto-generated **OG share image**
+  (`app/opengraph-image.tsx`).
 
-After deploying, submit the site in **Google Search Console** and add the sitemap
-(`https://your-domain/sitemap.xml`) for fastest indexing. (Backlinks are off-site —
-earn them by listing PDFShell in tool directories, GitHub, and relevant communities;
-code can't create them.)
+**Custom domain (recommended):** a real domain ranks better and looks more
+trustworthy than `*.onrender.com`. In Render → Settings → Custom Domains, add your
+domain and create the DNS record it shows; then set `NEXT_PUBLIC_SITE_URL` to that
+domain and redeploy (it's inlined at build, so a redeploy is required).
+
+**Search engines:** submit the site in **Google Search Console** and add the
+sitemap (`https://your-domain/sitemap.xml`). For **Bing**, the quickest path is
+*Import from GSC*; or set `NEXT_PUBLIC_BING_VERIFICATION` for the meta-tag method.
+(Backlinks are off-site — earn them by listing PDFShell in tool directories,
+GitHub, and relevant communities; code can't create them.)
 
 ## Keep the app warm (Render free tier)
 
