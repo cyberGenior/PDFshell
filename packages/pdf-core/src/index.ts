@@ -21,3 +21,11 @@ export { getMetadata, setMetadata, getPageCount } from './metadata.js';
 
 export { imagesToPdf } from './images.js';
 export type { ImageInput, ImagesToPdfOptions } from './images.js';
+
+export { rotatePages, rotateAll, addPageNumbers, addWatermark, cropPages } from './transform.js';
+export type {
+  PageNumberOptions,
+  PageNumberPosition,
+  WatermarkOptions,
+  CropMargins,
+} from './transform.js';

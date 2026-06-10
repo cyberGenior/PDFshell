@@ -66,6 +66,26 @@ export const PAGES: Record<string, Seo> = {
     title: 'Images to PDF Converter',
     description: 'Combine JPG and PNG images into a single PDF, right in your browser.',
   },
+  '/rotate': {
+    title: 'Rotate PDF Pages',
+    description: 'Rotate PDF pages 90°, 180° or 270° — single pages or the whole file, free and private, in your browser.',
+  },
+  '/page-numbers': {
+    title: 'Add Page Numbers to PDF',
+    description: 'Stamp page numbers on a PDF — choose position, format and start number. Free, in your browser, nothing uploaded.',
+  },
+  '/watermark': {
+    title: 'Add Watermark to PDF',
+    description: 'Stamp a text watermark like DRAFT or CONFIDENTIAL across PDF pages. Free, private, fully in-browser.',
+  },
+  '/crop': {
+    title: 'Crop PDF Pages',
+    description: 'Trim margins from PDF pages with a live preview — free and private, processed on your device.',
+  },
+  '/protect': {
+    title: 'Protect PDF with Password — or Unlock',
+    description: 'Add AES-256 password protection to a PDF, or remove a password you know. Free, no watermark.',
+  },
 };
 
 /** Build per-page Metadata (title, description, canonical, OG/Twitter) for a route. */

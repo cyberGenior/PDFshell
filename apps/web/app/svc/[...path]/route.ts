@@ -14,14 +14,17 @@ const BASE = (process.env.INTERNAL_CONVERT_URL ?? 'http://127.0.0.1:3001').repla
 async function proxy(req: Request, path: string[]): Promise<Response> {
   const target = `${BASE}/${path.join('/')}${new URL(req.url).search}`;
   const headers: Record<string, string> = {};
-  const ct = req.headers.get('content-type');
-  const ext = req.headers.get('x-source-ext');
-  if (ct) headers['content-type'] = ct;
-  if (ext) headers['x-source-ext'] = ext;
+  for (const name of ['content-type', 'content-length', 'x-source-ext', 'x-password']) {
+    const value = req.headers.get(name);
+    if (value) headers[name] = value;
+  }
 
-  const init: RequestInit = { method: req.method, headers };
+  // Stream the body through instead of buffering it twice — large uploads
+  // would otherwise hold 2× the file in this process's memory.
+  const init: RequestInit & { duplex?: 'half' } = { method: req.method, headers };
   if (req.method !== 'GET' && req.method !== 'HEAD') {
-    init.body = Buffer.from(await req.arrayBuffer());
+    init.body = req.body;
+    init.duplex = 'half';
   }
 
   try {

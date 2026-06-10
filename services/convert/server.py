@@ -31,6 +31,12 @@ from urllib.parse import urlparse, parse_qs
 
 PORT = int(os.environ.get("PORT", "3001"))
 
+# Hardening: cap request size (a body is held in memory for the duration of a
+# job) and the number of concurrent heavy jobs (LibreOffice/Ghostscript each
+# take hundreds of MB — unbounded parallelism OOMs small hosts).
+MAX_BODY_BYTES = int(os.environ.get("PDFSHELL_MAX_BODY_MB", "200")) * 1024 * 1024
+_JOBS = threading.Semaphore(int(os.environ.get("PDFSHELL_MAX_JOBS", "2")))
+
 # Transient working directory. User files live here ONLY for the duration of a
 # job — each request uses an auto-deleted temp subdir, and a janitor sweeps any
 # stragglers (e.g. after a crash). Nothing is ever persisted.
@@ -88,7 +94,7 @@ MIME = {
 CORS = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
-    "Access-Control-Allow-Headers": "content-type, x-source-ext",
+    "Access-Control-Allow-Headers": "content-type, x-source-ext, x-password",
 }
 
 
@@ -634,6 +640,45 @@ def pdf_to_txt(in_path: str, out_path: str) -> None:
         fh.write(text)
 
 
+class WrongPassword(Exception):
+    """The supplied password does not open this PDF."""
+
+
+def protect_pdf(body: bytes, password: str) -> bytes:
+    """Encrypt a PDF with AES-256 (user + owner password)."""
+    import fitz
+
+    doc = fitz.open(stream=body, filetype="pdf")
+    try:
+        perm = int(
+            fitz.PDF_PERM_ACCESSIBILITY
+            | fitz.PDF_PERM_PRINT
+            | fitz.PDF_PERM_COPY
+            | fitz.PDF_PERM_ANNOTATE
+        )
+        return doc.tobytes(
+            encryption=fitz.PDF_ENCRYPT_AES_256,
+            owner_pw=password,
+            user_pw=password,
+            permissions=perm,
+        )
+    finally:
+        doc.close()
+
+
+def unlock_pdf(body: bytes, password: str) -> bytes:
+    """Decrypt a PDF, given its correct password. Raises WrongPassword."""
+    import fitz
+
+    doc = fitz.open(stream=body, filetype="pdf")
+    try:
+        if doc.needs_pass and not doc.authenticate(password):
+            raise WrongPassword()
+        return doc.tobytes(encryption=fitz.PDF_ENCRYPT_NONE)
+    finally:
+        doc.close()
+
+
 def compress(body: bytes, preset: str) -> bytes:
     """Compress a PDF with Ghostscript. Guarantees the result is never larger
     than the input — if compression doesn't help, the original is returned."""
@@ -1056,39 +1101,62 @@ class Handler(BaseHTTPRequestHandler):
         query = parse_qs(parsed.query)
 
         length = int(self.headers.get("Content-Length", "0"))
+        if length > MAX_BODY_BYTES:
+            return self._send(413, f"File too large (limit {MAX_BODY_BYTES // (1024 * 1024)} MB)".encode())
         body = self.rfile.read(length) if length else b""
         if not body:
             return self._send(400, b"Empty body")
 
+        # URL-decoded password header (never the query string, so it can't leak
+        # into access logs anywhere along the path).
+        from urllib.parse import unquote
+        password = unquote(self.headers.get("x-password", "") or "")
+
         try:
-            if parsed.path == "/compress":
-                preset = (query.get("preset", ["ebook"])[0] or "ebook").lower()
-                out = compress(body, preset)
-                return self._send(200, out, "application/pdf")
+            # Bound concurrent heavy jobs so parallel uploads can't OOM the host.
+            with _JOBS:
+                if parsed.path == "/compress":
+                    preset = (query.get("preset", ["ebook"])[0] or "ebook").lower()
+                    out = compress(body, preset)
+                    return self._send(200, out, "application/pdf")
 
-            if parsed.path == "/convert":
-                target = (query.get("target", [""])[0] or "").lower()
-                source_ext = (self.headers.get("x-source-ext", "pdf") or "pdf").lower()
-                use_ai = query.get("ai", ["0"])[0] in ("1", "true", "yes")
-                if not target.isalnum() or len(target) > 5:
-                    return self._send(400, b"Invalid target")
-                out = convert(body, source_ext, target, use_ai=use_ai)
-                return self._send(200, out, MIME.get(target, "application/octet-stream"))
+                if parsed.path == "/protect":
+                    if len(password) < 4:
+                        return self._send(400, b"Password too short")
+                    out = protect_pdf(body, password)
+                    return self._send(200, out, "application/pdf")
 
-            # In-place editing (MuPDF). /edit/page: raw PDF body + ?n=<index>.
-            if parsed.path == "/edit/page":
-                n = int(query.get("n", ["0"])[0] or 0)
-                result = edit_extract(body, n)
-                return self._send(200, json.dumps(result).encode(), "application/json")
+                if parsed.path == "/unlock":
+                    if not password:
+                        return self._send(400, b"Password required")
+                    out = unlock_pdf(body, password)
+                    return self._send(200, out, "application/pdf")
 
-            # /edit/apply: JSON { pdf: base64, pages: [{page, lines:[...]}] } → edited PDF.
-            if parsed.path == "/edit/apply":
-                payload = json.loads(body)
-                pdf = base64.b64decode(payload["pdf"])
-                out = edit_apply(pdf, payload.get("pages", []))
-                return self._send(200, out, "application/pdf")
+                if parsed.path == "/convert":
+                    target = (query.get("target", [""])[0] or "").lower()
+                    source_ext = (self.headers.get("x-source-ext", "pdf") or "pdf").lower()
+                    use_ai = query.get("ai", ["0"])[0] in ("1", "true", "yes")
+                    if not target.isalnum() or len(target) > 5:
+                        return self._send(400, b"Invalid target")
+                    out = convert(body, source_ext, target, use_ai=use_ai)
+                    return self._send(200, out, MIME.get(target, "application/octet-stream"))
+
+                # In-place editing (MuPDF). /edit/page: raw PDF body + ?n=<index>.
+                if parsed.path == "/edit/page":
+                    n = int(query.get("n", ["0"])[0] or 0)
+                    result = edit_extract(body, n)
+                    return self._send(200, json.dumps(result).encode(), "application/json")
+
+                # /edit/apply: JSON { pdf: base64, pages: [{page, lines:[...]}] } → edited PDF.
+                if parsed.path == "/edit/apply":
+                    payload = json.loads(body)
+                    pdf = base64.b64decode(payload["pdf"])
+                    out = edit_apply(pdf, payload.get("pages", []))
+                    return self._send(200, out, "application/pdf")
 
             return self._send(404, b"Not found")
+        except WrongPassword:
+            self._send(401, b"Wrong password")
         except subprocess.CalledProcessError as exc:
             msg = exc.stderr.decode("utf-8", "replace") if exc.stderr else str(exc)
             self._send(500, f"Operation failed: {msg}".encode())

@@ -33,8 +33,8 @@ export default function HomePage() {
           Every PDF tool, right where your files already are.
         </h1>
         <p className="max-w-xl text-lg text-[var(--muted-foreground)]">
-          Merge, split, compress, OCR and convert — processed entirely on your device.
-          Private by default, fast on a slow connection.
+          Merge, split, compress, rotate, watermark, OCR, convert and protect — processed on your
+          device wherever possible. Private by default, fast on a slow connection.
         </p>
         <div className="flex flex-wrap justify-center gap-3">
           <Link href="/merge"><Button size="lg">Start with Merge <ArrowRight /></Button></Link>
@@ -45,7 +45,7 @@ export default function HomePage() {
         <div className="relative mt-6 w-full max-w-3xl">
           <div className="mx-auto grid max-w-md grid-cols-1 gap-3 sm:max-w-none sm:grid-cols-3">
             <StatCard fill="var(--c-mint)" ink="var(--c-mint-ink)" big="0" label="uploads, ever" />
-            <StatCard fill="var(--c-sky)" ink="var(--c-sky-ink)" big="6" label="tools in your pocket" />
+            <StatCard fill="var(--c-sky)" ink="var(--c-sky-ink)" big="11" label="tools in your pocket" />
             <StatCard fill="var(--c-yellow)" ink="var(--c-yellow-ink)" big="100+" label="OCR languages" />
           </div>
           <div className="pointer-events-none absolute -left-2 -top-3 hidden rotate-[-6deg] rounded-2xl bg-[var(--c-lavender)] px-3 py-1.5 text-xs font-medium text-[var(--c-lavender-ink)] shadow-sm lg:block">
@@ -118,7 +118,7 @@ export default function HomePage() {
         </p>
         <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
           {POWERED_BY.map((name) => (
-            <span key={name} className="text-base font-semibold text-[var(--muted-foreground)] opacity-70">
+            <span key={name} className="text-base font-semibold text-[var(--muted-foreground)]">
               {name}
             </span>
           ))}
@@ -132,7 +132,7 @@ function StatCard({ fill, ink, big, label }: { fill: string; ink: string; big: s
   return (
     <div className="rounded-2xl p-5 text-left" style={{ backgroundColor: fill, color: ink }}>
       <p className="font-serif text-4xl font-semibold leading-none">{big}</p>
-      <p className="mt-2 text-sm font-medium opacity-80">{label}</p>
+      <p className="mt-2 text-sm font-medium">{label}</p>
     </div>
   );
 }

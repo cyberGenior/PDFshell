@@ -4,8 +4,10 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { assemblePages, type PagePick } from '@pdfshell/pdf-core';
 import { loadPdf, renderThumbnail } from '@/lib/pdf/render';
+import { usePendingDoc } from '@/lib/handoff';
 import { ToolShell } from '@/components/pdf/ToolShell';
 import { DropZone } from '@/components/pdf/DropZone';
+import { SendToTools } from '@/components/pdf/SendToTools';
 import { Button } from '@/components/ui/button';
 import { ProcessingOverlay } from '@/components/ui/Loader';
 import { downloadBlob } from '@/lib/utils';
@@ -35,6 +37,8 @@ export default function MergePage() {
   const [error, setError] = useState<string | null>(null);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [overIndex, setOverIndex] = useState<number | null>(null);
+  const [announce, setAnnounce] = useState('');
+  const [result, setResult] = useState<{ bytes: Uint8Array; name: string } | null>(null);
 
   async function addFiles(incoming: File[]) {
     setError(null);
@@ -65,6 +69,8 @@ export default function MergePage() {
     setItems((prev) => prev.filter((it) => it.id !== id));
   }
 
+  usePendingDoc((f) => void addFiles([f]));
+
   /** Move the dragged tile so it lands at `to` (insert before that position). */
   function reorder(from: number, to: number) {
     if (from === to) return;
@@ -74,6 +80,19 @@ export default function MergePage() {
       next.splice(to > from ? to - 1 : to, 0, moved!);
       return next;
     });
+  }
+
+  /** Keyboard alternative to drag: swap the focused tile with its neighbour. */
+  function moveBy(index: number, delta: -1 | 1) {
+    const to = index + delta;
+    if (to < 0 || to >= items.length) return;
+    setItems((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(index, 1);
+      next.splice(to, 0, moved!);
+      return next;
+    });
+    setAnnounce(`Moved to position ${to + 1} of ${items.length}.`);
   }
 
   async function save() {
@@ -88,7 +107,9 @@ export default function MergePage() {
         pageNumber: it.page,
       }));
       const name = files.length === 1 ? files[0]!.file.name.replace(/\.pdf$/i, '') + '_organised.pdf' : 'merged.pdf';
-      downloadBlob(await assemblePages(sources, picks), name);
+      const bytes = await assemblePages(sources, picks);
+      downloadBlob(bytes, name);
+      setResult({ bytes, name });
       track('conversion', 'merge');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to build the PDF.');
@@ -115,23 +136,34 @@ export default function MergePage() {
           <p className="text-sm text-[var(--muted-foreground)]">
             {items.length} page{items.length === 1 ? '' : 's'} from {files.length} file
             {files.length === 1 ? '' : 's'}. <strong className="text-[var(--foreground)]">Drag any page</strong> to drop it
-            where you want — the order here is the final document.
+            where you want — or focus a page and use the <strong className="text-[var(--foreground)]">arrow keys</strong> to
+            move it. The order here is the final document.
           </p>
+          {/* Screen-reader announcement for keyboard reordering. */}
+          <p aria-live="polite" className="sr-only">{announce}</p>
 
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-3" role="list" aria-label="Pages in output order">
             {items.map((item, i) => (
               <motion.div
                 key={item.id}
                 layout
                 transition={{ type: 'spring', stiffness: 600, damping: 45 }}
                 draggable
+                tabIndex={0}
+                role="listitem"
+                aria-label={`${item.fileName} page ${item.page}, position ${i + 1} of ${items.length}. Use arrow keys to move, Delete to remove.`}
+                onKeyDown={(e) => {
+                  if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); moveBy(i, -1); }
+                  else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); moveBy(i, 1); }
+                  else if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); remove(item.id); }
+                }}
                 onDragStart={() => setDragIndex(i)}
                 onDragEnter={() => setOverIndex(i)}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={() => { if (dragIndex !== null) reorder(dragIndex, i); setDragIndex(null); setOverIndex(null); }}
                 onDragEnd={() => { setDragIndex(null); setOverIndex(null); }}
                 className={
-                  'group relative w-[136px] cursor-grab rounded-xl border bg-[var(--card)] p-2 transition-all active:cursor-grabbing ' +
+                  'group relative w-[136px] cursor-grab rounded-xl border bg-[var(--card)] p-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] active:cursor-grabbing ' +
                   (dragIndex === i ? 'opacity-40 ' : '') +
                   (overIndex === i && dragIndex !== i ? 'border-[var(--brand)] ring-2 ring-[var(--brand)]' : 'border-[var(--border)]')
                 }
@@ -165,10 +197,12 @@ export default function MergePage() {
             <Button onClick={save} disabled={busy || items.length < 1}>
               {busy ? 'Working…' : singleFile ? 'Save reordered PDF' : `Merge ${items.length} page${items.length === 1 ? '' : 's'} → PDF`}
             </Button>
-            <Button variant="ghost" onClick={() => { setFiles([]); setItems([]); }} disabled={busy}>
+            <Button variant="ghost" onClick={() => { setFiles([]); setItems([]); setResult(null); }} disabled={busy}>
               Clear
             </Button>
           </div>
+
+          {result && <SendToTools bytes={result.bytes} name={result.name} exclude="merge" />}
         </div>
       )}
     </ToolShell>

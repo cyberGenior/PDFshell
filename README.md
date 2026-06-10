@@ -2,7 +2,17 @@
 
 Open-source, **privacy-first** PDF toolkit that runs entirely in your browser. No files are ever uploaded — all processing happens on-device via WebAssembly and WebWorkers.
 
-Six tools: **Merge · Split · Compress · Edit · OCR · Convert.**
+Eleven tools: **Merge · Split · Compress · Edit · OCR · Convert · Rotate · Page numbers · Watermark · Crop · Protect/Unlock.**
+
+- **On-device** (never uploaded): merge, split, edit, OCR, rotate, page numbers,
+  watermark, crop, lossless + flatten compression, images↔PDF, DOCX→PDF.
+- **Self-hosted service** (your server, deleted after processing): strong
+  Ghostscript compression, PDF↔Office, protect/unlock (AES-256).
+- **Installable PWA**: add PDFShell to the home screen — the on-device tools
+  keep working offline once visited, and heavy assets (OCR languages, WASM)
+  are cached after the first download.
+- **Tool chaining**: every result offers "keep working" shortcuts that hand the
+  output straight to the next tool — no re-uploading between steps.
 
 ## Monorepo layout
 
@@ -29,6 +39,12 @@ pnpm build          # static export to apps/web/out
 ```
 
 > Requires Node ≥ 20 and pnpm. Enable pnpm with `corepack enable` or `npm i -g pnpm`.
+
+**E2E + accessibility tests** (Playwright): `pnpm --filter @pdfshell/web test:e2e`
+drives your system Chrome by default. In containers/CI without Chrome, run
+`pnpm exec playwright install chromium` once and set `PDFSHELL_PW_CHANNEL=bundled`.
+The suite includes an **axe-core gate** (`e2e/a11y.spec.ts`) that fails on any
+serious/critical WCAG 2.0 A/AA violation across the public pages.
 
 ## Admin panel
 

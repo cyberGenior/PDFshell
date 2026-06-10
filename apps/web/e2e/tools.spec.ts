@@ -46,10 +46,10 @@ async function upload(page: Page, files: { name: string; mimeType: string; buffe
   await page.locator('input[type="file"]').setInputFiles(files);
 }
 
-test('landing shows the six tools', async ({ page }) => {
+test('landing shows the core tools', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-  for (const name of ['Merge', 'Split', 'Compress', 'Edit', 'OCR', 'Convert']) {
+  for (const name of ['Organize & Merge', 'Split', 'Compress', 'Edit', 'OCR', 'Convert', 'Rotate', 'Watermark']) {
     await expect(page.getByText(name, { exact: true }).first()).toBeVisible();
   }
 });
@@ -60,8 +60,9 @@ test('merge: two PDFs → one download', async ({ page }) => {
     { name: 'a.pdf', mimeType: 'application/pdf', buffer: await makePdf(2) },
     { name: 'b.pdf', mimeType: 'application/pdf', buffer: await makePdf(3) },
   ]);
-  await expect(page.getByText('a.pdf')).toBeVisible();
-  const btn = page.getByRole('button', { name: /Merge 2 PDFs/ });
+  // 2 + 3 pages render as one reorderable grid.
+  await expect(page.getByText('5 pages from 2 files')).toBeVisible({ timeout: 30_000 });
+  const btn = page.getByRole('button', { name: /Merge 5 pages/ });
   await expect(btn).toBeEnabled();
   const [download] = await Promise.all([page.waitForEvent('download'), btn.click()]);
   expect(download.suggestedFilename()).toBe('merged.pdf');
@@ -72,27 +73,29 @@ test('split: PDF.js preview renders, then split downloads', async ({ page }) => 
   await upload(page, [{ name: 'doc.pdf', mimeType: 'application/pdf', buffer: await makePdf(3) }]);
   // The preview strip proves PDF.js canvas rendering works in-browser.
   await expect(page.locator('img[alt="Page 1"]')).toBeVisible({ timeout: 30_000 });
-  await page.getByLabel('Page ranges').fill('1-2');
+  await page.getByRole('button', { name: 'All', exact: true }).click();
   const [download] = await Promise.all([
     page.waitForEvent('download'),
-    page.getByRole('button', { name: /Split & download/ }).click(),
+    page.getByRole('button', { name: /Extract 3 pages/ }).click(),
   ]);
-  expect(download.suggestedFilename()).toContain('p1-2');
+  expect(download.suggestedFilename()).toContain('_extract');
 });
 
-test('compress: lossless re-save produces a downloadable PDF', async ({ page }) => {
+test('compress: lossless re-save reports a result', async ({ page }) => {
   await page.goto('/compress');
   await upload(page, [{ name: 'big.pdf', mimeType: 'application/pdf', buffer: await makePdf(8) }]);
+  await page.getByRole('radio', { name: /Lossless, on-device/ }).click();
   await page.getByRole('button', { name: 'Compress', exact: true }).click();
-  // The Download button only renders once compression produced a result.
-  const downloadBtn = page.getByRole('button', { name: /Download compressed PDF/ });
-  await expect(downloadBtn).toBeVisible({ timeout: 30_000 });
-  const [download] = await Promise.all([page.waitForEvent('download'), downloadBtn.click()]);
-  expect(download.suggestedFilename()).toContain('_compressed');
+  // A tiny fixture may already be optimal — either outcome is a valid result.
+  await expect(
+    page
+      .getByRole('button', { name: /Download compressed PDF/ })
+      .or(page.getByText('Already well optimised', { exact: false })),
+  ).toBeVisible({ timeout: 30_000 });
 });
 
 test('convert: image → PDF download', async ({ page }) => {
-  await page.goto('/convert');
+  await page.goto('/convert/images-to-pdf');
   await upload(page, [{ name: 'shot.png', mimeType: 'image/png', buffer: makePng() }]);
   const [download] = await Promise.all([
     page.waitForEvent('download'),

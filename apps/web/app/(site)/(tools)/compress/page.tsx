@@ -1,37 +1,59 @@
 'use client';
 
-import { useState } from 'react';
-import { compressLossless, classifyOutcome, type CompressResult } from '@pdfshell/compress-engine';
+import { useRef, useState } from 'react';
+import {
+  compressLossless,
+  assembleImagePdf,
+  classifyOutcome,
+  type CompressResult,
+} from '@pdfshell/compress-engine';
 import { compressViaService, ServiceUnavailableError, type CompressPreset } from '@/lib/libreoffice';
+import { renderPdfToImagePages } from '@/lib/pdf/render';
+import { usePendingDoc } from '@/lib/handoff';
+import { usePersistedState } from '@/lib/usePersistedState';
 import { ToolShell } from '@/components/pdf/ToolShell';
 import { DropZone } from '@/components/pdf/DropZone';
+import { SendToTools } from '@/components/pdf/SendToTools';
 import { Button } from '@/components/ui/button';
 import { ProcessingOverlay } from '@/components/ui/Loader';
 import { downloadBlob, formatBytes } from '@/lib/utils';
 import { track } from '@/lib/track';
 
-type Method = 'strong' | 'ondevice';
+type Method = 'strong' | 'flatten' | 'ondevice';
 
-const PRESETS: { value: CompressPreset; label: string; hint: string }[] = [
-  { value: 'screen', label: 'Smallest', hint: '72 dpi — email & screen' },
-  { value: 'ebook', label: 'Balanced', hint: '150 dpi — recommended' },
-  { value: 'printer', label: 'High quality', hint: '300 dpi — printing' },
+const PRESETS: { value: CompressPreset; label: string; hint: string; dpi: number; quality: number }[] = [
+  { value: 'screen', label: 'Smallest', hint: '72 dpi — email & screen', dpi: 72, quality: 0.6 },
+  { value: 'ebook', label: 'Balanced', hint: '150 dpi — recommended', dpi: 150, quality: 0.75 },
+  { value: 'printer', label: 'High quality', hint: '300 dpi — printing', dpi: 300, quality: 0.85 },
 ];
 
 export default function CompressPage() {
   const [file, setFile] = useState<File | null>(null);
-  const [method, setMethod] = useState<Method>('strong');
-  const [preset, setPreset] = useState<CompressPreset>('ebook');
+  const [method, setMethod] = usePersistedState<Method>('compress-method', 'strong');
+  const [preset, setPreset] = usePersistedState<CompressPreset>('compress-preset', 'ebook');
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState<string | null>(null);
   const [result, setResult] = useState<CompressResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [serviceDown, setServiceDown] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
+  const cancelledRef = useRef(false);
 
   function reset(next: File | null) {
     setFile(next);
     setResult(null);
     setError(null);
     setServiceDown(false);
+    setProgress(null);
+  }
+
+  usePendingDoc((f) => reset(f));
+
+  function cancel() {
+    cancelledRef.current = true;
+    abortRef.current?.abort();
+    setBusy(false);
+    setProgress(null);
   }
 
   async function run() {
@@ -40,11 +62,13 @@ export default function CompressPage() {
     setError(null);
     setServiceDown(false);
     setResult(null);
+    cancelledRef.current = false;
     track('tool_used', 'compress');
     try {
       const originalSize = file.size;
       if (method === 'strong') {
-        const bytes = await compressViaService(file, preset);
+        abortRef.current = new AbortController();
+        const bytes = await compressViaService(file, preset, abortRef.current.signal);
         setResult({
           bytes,
           originalSize,
@@ -53,25 +77,45 @@ export default function CompressPage() {
           outcome: classifyOutcome(originalSize, bytes.byteLength),
           keptOriginal: bytes.byteLength >= originalSize,
         });
+      } else if (method === 'flatten') {
+        const p = PRESETS.find((x) => x.value === preset)!;
+        const source = new Uint8Array(await file.arrayBuffer());
+        const pages = await renderPdfToImagePages(source, p.dpi, p.quality, (done, total) => {
+          if (cancelledRef.current) throw new DOMException('Cancelled', 'AbortError');
+          setProgress(`Flattening page ${done} of ${total}…`);
+        });
+        if (cancelledRef.current) return;
+        setProgress('Rebuilding the PDF…');
+        setResult(await assembleImagePdf(pages, source));
       } else {
         setResult(await compressLossless(new Uint8Array(await file.arrayBuffer())));
       }
     } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return; // user cancelled
       if (err instanceof ServiceUnavailableError) setServiceDown(true);
       else setError(err instanceof Error ? err.message : 'Compression failed.');
     } finally {
+      abortRef.current = null;
       setBusy(false);
+      setProgress(null);
     }
   }
 
+  const outName = file ? file.name.replace(/\.pdf$/i, '') + '_compressed.pdf' : 'compressed.pdf';
+
   function download() {
-    if (!result || !file) return;
-    downloadBlob(result.bytes, file.name.replace(/\.pdf$/i, '') + '_compressed.pdf');
+    if (!result) return;
+    downloadBlob(result.bytes, outName);
   }
 
   return (
     <ToolShell slug="compress">
-      <ProcessingOverlay show={busy} label="Compressing your PDF…" sublabel={method === 'strong' ? 'Optimising on your server' : 'Optimising on your device'} />
+      <ProcessingOverlay
+        show={busy}
+        label="Compressing your PDF…"
+        sublabel={progress ?? (method === 'strong' ? 'Optimising on your server' : 'Optimising on your device')}
+        onCancel={cancel}
+      />
       {!file ? (
         <DropZone onFiles={(f) => reset(f[0] ?? null)} multiple={false} label="Drop a PDF to compress" />
       ) : (
@@ -93,14 +137,20 @@ export default function CompressPage() {
               detail="Best size reduction (Ghostscript). Runs on your self-hosted service."
             />
             <MethodOption
+              checked={method === 'flatten'}
+              onSelect={() => { setMethod('flatten'); setResult(null); }}
+              title="Strong, on-device (flatten)"
+              detail="Big savings on scanned/image PDFs — nothing uploaded, works offline. Pages become images, so selectable text is lost."
+            />
+            <MethodOption
               checked={method === 'ondevice'}
               onSelect={() => { setMethod('ondevice'); setResult(null); }}
-              title="On-device (private)"
-              detail="Re-optimises in your browser — nothing uploaded. Gains are modest; never enlarges."
+              title="Lossless, on-device (private)"
+              detail="Re-optimises in your browser — nothing uploaded. Gains are modest; never enlarges; text stays selectable."
             />
           </fieldset>
 
-          {method === 'strong' && (
+          {method !== 'ondevice' && (
             <div className="flex flex-col gap-1.5">
               <span className="text-sm font-medium">Quality</span>
               <div className="flex flex-wrap gap-2">
@@ -108,8 +158,9 @@ export default function CompressPage() {
                   <button
                     key={p.value}
                     onClick={() => { setPreset(p.value); setResult(null); }}
+                    aria-pressed={preset === p.value}
                     className={
-                      'rounded-xl border px-3 py-2 text-left text-sm transition-colors ' +
+                      'rounded-xl border px-3 py-2 text-left text-sm transition-colors focus-visible:ring-2 focus-visible:ring-[var(--ring)] ' +
                       (preset === p.value
                         ? 'border-[var(--brand)] bg-[color-mix(in_oklch,var(--brand)_8%,transparent)]'
                         : 'border-[var(--border)] hover:bg-[var(--surface-2)]')
@@ -123,12 +174,19 @@ export default function CompressPage() {
             </div>
           )}
 
+          {method === 'flatten' && (
+            <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-800 dark:text-amber-300">
+              Flatten rebuilds every page as an image: great for scans, but selectable text and links
+              are lost, and text-heavy PDFs can come out <em>larger</em> — if so, PDFShell keeps your original.
+            </div>
+          )}
+
           {serviceDown && (
             <div className="rounded-md border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-500">
               <p className="font-medium">Compression service isn’t running.</p>
               <p className="mt-1 text-red-500/90">
                 Start it with <code className="rounded bg-black/10 px-1 dark:bg-white/10">docker compose up convert</code>,
-                or use the on-device method.
+                or use an on-device method — “flatten” gives similar savings on scans.
               </p>
             </div>
           )}
@@ -146,7 +204,7 @@ export default function CompressPage() {
               ) : (
                 <p className="text-[var(--muted-foreground)]">
                   Already well optimised — no meaningful reduction ({formatBytes(result.originalSize)}).
-                  {method === 'ondevice' && ' Try “Strong compression” for image-heavy PDFs.'}
+                  {method === 'ondevice' && ' Try “flatten” for image-heavy PDFs.'}
                 </p>
               )}
             </div>
@@ -164,6 +222,10 @@ export default function CompressPage() {
               </Button>
             )}
           </div>
+
+          {result && result.outcome === 'smaller' && (
+            <SendToTools bytes={result.bytes} name={outName} exclude="compress" />
+          )}
         </div>
       )}
     </ToolShell>
@@ -185,8 +247,10 @@ function MethodOption({
     <button
       type="button"
       onClick={onSelect}
+      role="radio"
+      aria-checked={checked}
       className={
-        'flex items-start gap-3 rounded-xl border p-3 text-left transition-colors ' +
+        'flex items-start gap-3 rounded-xl border p-3 text-left transition-colors focus-visible:ring-2 focus-visible:ring-[var(--ring)] ' +
         (checked ? 'border-[var(--brand)] bg-[color-mix(in_oklch,var(--brand)_8%,transparent)]' : 'border-[var(--border)]')
       }
     >

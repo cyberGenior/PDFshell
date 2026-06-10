@@ -56,7 +56,9 @@ export function DropZone({
             'radial-gradient(60% 60% at 50% 40%, color-mix(in oklch, var(--grad-via) 18%, transparent), transparent)',
         }}
       />
-      <input {...getInputProps()} />
+      {/* The input carries the accessible name; the root stays role-free so
+          the focusable input inside it isn't a nested interactive control. */}
+      <input {...getInputProps({ 'aria-label': `${label}. ${hint}` })} />
       <motion.span
         animate={isDragActive ? { y: -4 } : { y: 0 }}
         className="relative grid size-14 place-items-center rounded-2xl gradient-brand text-white shadow-lg"

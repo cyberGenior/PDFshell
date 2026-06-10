@@ -4,7 +4,11 @@ import { defineConfig, devices } from '@playwright/test';
  * E2E config. We drive the *system* Chrome (channel: 'chrome') instead of
  * downloading Chromium — keeps the toolchain light and matches what most users
  * here actually run. The dev server is started automatically.
+ *
+ * In containers/CI without a system Chrome, set PDFSHELL_PW_CHANNEL=bundled
+ * (after `playwright install chromium`) to use Playwright's own Chromium.
  */
+const channel = process.env.PDFSHELL_PW_CHANNEL ?? 'chrome';
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: false,
@@ -21,7 +25,7 @@ export default defineConfig({
   projects: [
     {
       name: 'chrome',
-      use: { ...devices['Desktop Chrome'], channel: 'chrome' },
+      use: { ...devices['Desktop Chrome'], ...(channel === 'bundled' ? {} : { channel }) },
     },
   ],
   webServer: {

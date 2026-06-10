@@ -2,9 +2,11 @@
 
 import { useState } from 'react';
 import { extractPages, splitByRanges, getPageCount } from '@pdfshell/pdf-core';
+import { usePendingDoc } from '@/lib/handoff';
 import { ToolShell } from '@/components/pdf/ToolShell';
 import { DropZone } from '@/components/pdf/DropZone';
 import { PdfPreview } from '@/components/pdf/PdfPreview';
+import { SendToTools } from '@/components/pdf/SendToTools';
 import { Button } from '@/components/ui/button';
 import { ProcessingOverlay } from '@/components/ui/Loader';
 import { downloadBlob, formatBytes } from '@/lib/utils';
@@ -18,6 +20,7 @@ export default function SplitPage() {
   const [separate, setSeparate] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<{ bytes: Uint8Array; name: string } | null>(null);
 
   async function selectFile(files: File[]) {
     const next = files[0];
@@ -26,6 +29,7 @@ export default function SplitPage() {
     setFile(next);
     setSelected(new Set());
     setLastClicked(null);
+    setResult(null);
     try {
       setPageCount(await getPageCount(await next.arrayBuffer()));
     } catch {
@@ -33,6 +37,8 @@ export default function SplitPage() {
       setError('Could not read this PDF.');
     }
   }
+
+  usePendingDoc((f) => void selectFile([f]));
 
   function toggle(page: number, shift: boolean) {
     setSelected((prev) => {
@@ -72,10 +78,12 @@ export default function SplitPage() {
         // One PDF per selected page.
         const parts = await splitByRanges(buffer, pages.map((p) => ({ start: p, end: p })));
         parts.forEach((bytes, i) => downloadBlob(bytes, `${base}_p${pages[i]}.pdf`));
+        setResult(null);
       } else {
         // One PDF containing exactly the selected pages, in order.
         const out = await extractPages(buffer, pages);
         downloadBlob(out, `${base}_extract.pdf`);
+        setResult({ bytes: out, name: `${base}_extract.pdf` });
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to split PDF.');
@@ -141,6 +149,8 @@ export default function SplitPage() {
               <span className="text-sm text-[var(--muted-foreground)]">Select at least one page.</span>
             )}
           </div>
+
+          {result && <SendToTools bytes={result.bytes} name={result.name} exclude="split" />}
         </div>
       )}
     </ToolShell>

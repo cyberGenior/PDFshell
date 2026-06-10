@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { Home, ShieldCheck, Github, X, BookOpen } from 'lucide-react';
 import { TOOLS } from '@/lib/tools';
 import { IconTile } from '@/components/ui/icon-tile';
+import { InstallPrompt } from '@/components/shell/InstallPrompt';
 import { cn } from '@/lib/utils';
 
 interface NavItem {
@@ -83,6 +84,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       </nav>
 
       <div className="flex flex-col gap-2">
+        <InstallPrompt />
         <a
           href="https://github.com/cyberGenior/PDFshell"
           target="_blank"

@@ -184,6 +184,86 @@ export const TOOL_CONTENT: Record<string, ToolContent> = {
       FREE_FAQ,
     ],
   },
+  '/rotate': {
+    heading: 'Rotate PDF pages online, free',
+    intro:
+      'Fix sideways or upside-down pages in seconds. Rotate individual pages or the whole PDF by 90°, 180° or 270° — entirely in your browser, with nothing uploaded.',
+    steps: [
+      'Drop in your PDF — every page appears as a thumbnail.',
+      'Click a page to turn it 90°, or use “Rotate all” for the whole document.',
+      'Download the corrected PDF.',
+    ],
+    faqs: [
+      { q: 'How do I rotate just one page of a PDF?', a: 'Click that page’s thumbnail in the Rotate tool — each click turns it another 90°. Other pages are untouched.' },
+      { q: 'Will rotating reduce quality?', a: 'No — rotation only changes the page’s orientation flag; the content is never re-encoded.' },
+      PRIVACY_FAQ,
+      FREE_FAQ,
+    ],
+  },
+  '/page-numbers': {
+    heading: 'Add page numbers to a PDF',
+    intro:
+      'Stamp page numbers onto a PDF — pick the corner or centre, the format (1, 1 / 10, or Page 1 of 10), the starting number and the page range. Processed on your device, nothing uploaded.',
+    steps: [
+      'Drop in your PDF.',
+      'Choose position, format and the number to start from.',
+      'Download the numbered PDF.',
+    ],
+    faqs: [
+      { q: 'Can I skip the cover page?', a: 'Yes — set the page range to start from page 2 (and the start number to 1 if you want numbering to begin there).' },
+      { q: 'Which formats are supported?', a: 'Plain numbers (4), compact (4 / 12), or full text (Page 4 of 12), in any corner or centred.' },
+      PRIVACY_FAQ,
+      FREE_FAQ,
+    ],
+  },
+  '/watermark': {
+    heading: 'Add a text watermark to a PDF',
+    intro:
+      'Stamp DRAFT, CONFIDENTIAL, your company name or any text diagonally across every page. Adjust size, transparency and colour — all in your browser, with nothing uploaded.',
+    steps: [
+      'Drop in your PDF.',
+      'Type the watermark text and tune opacity, angle and colour with the live preview.',
+      'Download the watermarked PDF.',
+    ],
+    faqs: [
+      { q: 'Can I watermark only some pages?', a: 'Yes — set the page range before applying.' },
+      { q: 'Will the watermark cover my text?', a: 'The watermark is semi-transparent (you control the opacity), so the page content stays readable underneath.' },
+      PRIVACY_FAQ,
+      FREE_FAQ,
+    ],
+  },
+  '/crop': {
+    heading: 'Crop PDF pages online',
+    intro:
+      'Trim white margins or unwanted edges off PDF pages with a live preview. Great for tightening scans and slides before sharing — processed entirely on your device.',
+    steps: [
+      'Drop in your PDF — the first page shows as a live preview.',
+      'Drag the margin sliders until the crop frame fits.',
+      'Apply to every page (or a range) and download.',
+    ],
+    faqs: [
+      { q: 'Is cropping destructive?', a: 'No — PDFShell sets the page’s crop box, so viewers show the trimmed page but the full content remains in the file and can be un-cropped later.' },
+      { q: 'Can I crop pages of different sizes?', a: 'Yes — margins are proportional, so the same trim works across mixed page sizes.' },
+      PRIVACY_FAQ,
+      FREE_FAQ,
+    ],
+  },
+  '/protect': {
+    heading: 'Password-protect a PDF (or unlock one)',
+    intro:
+      'Encrypt a PDF with AES-256 so it needs a password to open — or remove the password from a PDF you own and know the password to.',
+    steps: [
+      'Drop in your PDF and choose Protect or Unlock.',
+      'Type the password (twice for Protect, to confirm).',
+      'Download the protected or unlocked PDF.',
+    ],
+    faqs: [
+      { q: 'How strong is the protection?', a: 'Files are encrypted with AES-256, the strongest standard PDF encryption — without the password the content can’t be read.' },
+      { q: 'Can you remove a password I forgot?', a: 'No — unlocking requires the correct password. PDFShell does not crack or bypass encryption.' },
+      SERVER_PRIVACY_FAQ,
+      FREE_FAQ,
+    ],
+  },
 };
 
 export function getToolContent(path: string): ToolContent | undefined {

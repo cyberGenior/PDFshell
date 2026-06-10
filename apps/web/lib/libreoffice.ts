@@ -27,6 +27,7 @@ export type CompressPreset = 'screen' | 'ebook' | 'printer';
 export async function compressViaService(
   file: File,
   preset: CompressPreset,
+  signal?: AbortSignal,
 ): Promise<Uint8Array> {
   let res: Response;
   try {
@@ -34,8 +35,10 @@ export async function compressViaService(
       method: 'POST',
       headers: { 'content-type': 'application/octet-stream' },
       body: await file.arrayBuffer(),
+      signal,
     });
-  } catch {
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') throw err;
     throw new ServiceUnavailableError();
   }
   if (!res.ok) {
@@ -43,6 +46,54 @@ export async function compressViaService(
     throw new Error(`Compression failed (${res.status}). ${detail}`.trim());
   }
   return new Uint8Array(await res.arrayBuffer());
+}
+
+/** Thrown when the service rejects the supplied PDF password. */
+export class WrongPasswordError extends Error {
+  constructor() {
+    super('That password is not correct for this PDF.');
+    this.name = 'WrongPasswordError';
+  }
+}
+
+async function passwordOp(
+  path: 'protect' | 'unlock',
+  file: File,
+  password: string,
+  signal?: AbortSignal,
+): Promise<Uint8Array> {
+  let res: Response;
+  try {
+    res = await fetch(`${CONVERT_BASE}/${path}`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/octet-stream',
+        // Header (not query string) so the password never lands in URL logs.
+        'x-password': encodeURIComponent(password),
+      },
+      body: await file.arrayBuffer(),
+      signal,
+    });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') throw err;
+    throw new ServiceUnavailableError();
+  }
+  if (res.status === 401) throw new WrongPasswordError();
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(`Operation failed (${res.status}). ${detail}`.trim());
+  }
+  return new Uint8Array(await res.arrayBuffer());
+}
+
+/** Encrypt a PDF with AES-256 so it requires `password` to open. */
+export function protectViaService(file: File, password: string, signal?: AbortSignal) {
+  return passwordOp('protect', file, password, signal);
+}
+
+/** Remove encryption from a PDF, given its correct password. */
+export function unlockViaService(file: File, password: string, signal?: AbortSignal) {
+  return passwordOp('unlock', file, password, signal);
 }
 
 /** Is the local Ollama model reachable for AI enhancement? */

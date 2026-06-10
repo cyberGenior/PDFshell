@@ -15,7 +15,8 @@ export const metadata: Metadata = {
   keywords: [
     'PDF tools', 'merge PDF', 'split PDF', 'compress PDF', 'edit PDF', 'OCR PDF',
     'PDF to Word', 'PDF to Excel', 'PDF to PowerPoint', 'free PDF editor',
-    'online PDF', 'privacy PDF', 'in-browser PDF',
+    'online PDF', 'privacy PDF', 'in-browser PDF', 'rotate PDF', 'watermark PDF',
+    'add page numbers to PDF', 'crop PDF', 'protect PDF with password', 'unlock PDF',
   ],
   alternates: { canonical: '/' },
   openGraph: {
@@ -52,6 +53,7 @@ const JSON_LD = {
   featureList: [
     'Merge & organize PDF', 'Split PDF', 'Compress PDF', 'Edit PDF', 'OCR scanned PDF',
     'PDF to Word', 'PDF to Excel', 'PDF to PowerPoint', 'PDF to text', 'PDF to images', 'Images to PDF',
+    'Rotate PDF pages', 'Add page numbers', 'Watermark PDF', 'Crop PDF', 'Protect & unlock PDF',
   ],
 };
 

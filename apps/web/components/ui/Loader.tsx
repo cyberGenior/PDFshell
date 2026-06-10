@@ -12,6 +12,8 @@ interface ProcessingOverlayProps {
   sublabel?: string | null;
   /** Optional note for slow operations, e.g. AI on CPU. */
   hint?: string;
+  /** When provided, shows a Cancel button that aborts the operation. */
+  onCancel?: () => void;
 }
 
 /**
@@ -19,7 +21,7 @@ interface ProcessingOverlayProps {
  * compress, OCR, convert). One consistent loader for every flow. Shows an
  * elapsed-seconds counter so long operations (CPU-AI, OCR) never feel frozen.
  */
-export function ProcessingOverlay({ show, label, sublabel, hint }: ProcessingOverlayProps) {
+export function ProcessingOverlay({ show, label, sublabel, hint, onCancel }: ProcessingOverlayProps) {
   const [secs, setSecs] = useState(0);
 
   useEffect(() => {
@@ -58,6 +60,15 @@ export function ProcessingOverlay({ show, label, sublabel, hint }: ProcessingOve
               <ShieldCheck className="size-3.5 text-[oklch(0.6_0.13_160)]" />
               Working — please keep this tab open.
             </p>
+            {onCancel && (
+              <button
+                type="button"
+                onClick={onCancel}
+                className="mt-1 rounded-md border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--muted-foreground)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--foreground)] focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+              >
+                Cancel
+              </button>
+            )}
           </motion.div>
         </motion.div>
       )}

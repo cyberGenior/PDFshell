@@ -32,7 +32,7 @@ export default function DocxToPdfPage() {
     <div className="flex flex-col gap-6">
       <ProcessingOverlay show={busy} label="Converting to PDF…" />
       <ConvertHeader slug="docx-to-pdf" />
-      <p className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300">
+      <p className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-800 dark:text-amber-300">
         On-device conversion captures text and basic structure (headings, paragraphs, lists) as
         selectable text. For pixel-perfect Word layouts (complex tables, images), use the
         server-based PDF→Word once your LibreOffice service is running.

@@ -5,6 +5,8 @@ import { OcrEngine, COMMON_LANGUAGES, type OcrWord } from '@pdfshell/ocr-engine'
 import { loadPdf, renderPageToCanvas } from '@/lib/pdf/render';
 import { buildSearchablePdf, type SearchablePage } from '@/lib/pdf/searchablePdf';
 import { useAssetConsent } from '@/lib/assetConsent';
+import { usePendingDoc } from '@/lib/handoff';
+import { usePersistedState } from '@/lib/usePersistedState';
 import { ToolShell } from '@/components/pdf/ToolShell';
 import { DropZone } from '@/components/pdf/DropZone';
 import { DataCostNotice } from '@/components/pdf/DataCostNotice';
@@ -36,7 +38,8 @@ function canvasToJpeg(canvas: HTMLCanvasElement): Promise<Uint8Array> {
 
 export default function OcrPage() {
   const [file, setFile] = useState<File | null>(null);
-  const [lang, setLang] = useState('eng');
+  // Persisted: a Swahili or Amharic user shouldn't reselect their language every visit.
+  const [lang, setLang] = usePersistedState('ocr-language', 'eng');
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [pages, setPages] = useState<PageResult[] | null>(null);
@@ -46,6 +49,7 @@ export default function OcrPage() {
   const [edited, setEdited] = useState('');
   const [error, setError] = useState<string | null>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
+  const cancelRef = useRef<{ cancelled: boolean; engine: OcrEngine | null }>({ cancelled: false, engine: null });
 
   const { consented, grant } = useAssetConsent(`ocr-${lang}`);
 
@@ -55,6 +59,16 @@ export default function OcrPage() {
     setSelected(null);
     setActive(0);
     setError(null);
+    setStatus(null);
+  }
+
+  usePendingDoc((f) => reset(f));
+
+  function cancelOcr() {
+    cancelRef.current.cancelled = true;
+    // Terminating the worker aborts the in-flight recognise() immediately.
+    void cancelRef.current.engine?.terminate();
+    setBusy(false);
     setStatus(null);
   }
 
@@ -91,10 +105,12 @@ export default function OcrPage() {
       languages: lang,
       onProgress: (p) => setStatus(`${p.status} ${Math.round(p.progress * 100)}%`),
     });
+    cancelRef.current = { cancelled: false, engine };
     try {
       const canvases = await renderSource(file);
       const results: PageResult[] = [];
       for (let i = 0; i < canvases.length; i++) {
+        if (cancelRef.current.cancelled) return;
         setStatus(`Recognising page ${i + 1} of ${canvases.length}…`);
         const canvas = canvases[i]!;
         const detailed = await engine.recognizeDetailed(canvas);
@@ -114,8 +130,11 @@ export default function OcrPage() {
       setActive(0);
       setTab('review');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'OCR failed.');
+      if (!cancelRef.current.cancelled) {
+        setError(err instanceof Error ? err.message : 'OCR failed.');
+      }
     } finally {
+      cancelRef.current.engine = null;
       await engine.terminate();
       setBusy(false);
       setStatus(null);
@@ -147,8 +166,8 @@ export default function OcrPage() {
 
   return (
     <ToolShell slug="ocr">
-      <ProcessingOverlay show={busy} label="Reading your document…" sublabel={status} />
-      <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300">
+      <ProcessingOverlay show={busy} label="Reading your document…" sublabel={status} onCancel={cancelOcr} />
+      <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-800 dark:text-amber-300">
         Works best on clear, ≥150 dpi scans. Multi-column layouts and tables may come out jumbled,
         and handwriting isn&apos;t supported. Check the amber/red words against the page.
       </div>
