@@ -2,13 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { extractPage, applyEdits, type PageEdit, type EditLine, type FontFamily } from '@/lib/pdfEdit';
+import { stampImages, type ImageStamp } from '@pdfshell/pdf-core';
 import { ToolShell } from '@/components/pdf/ToolShell';
 import { DropZone } from '@/components/pdf/DropZone';
+import { SignaturePad } from '@/components/pdf/SignaturePad';
 import { Button } from '@/components/ui/button';
 import { ProcessingOverlay } from '@/components/ui/Loader';
 import { downloadBlob } from '@/lib/utils';
 import { track } from '@/lib/track';
-import { ChevronLeft, ChevronRight, Trash2, Type, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Trash2, Type, Loader2, PenLine, X } from 'lucide-react';
 
 const TARGET_W = 820;
 
@@ -21,6 +23,17 @@ interface Item extends EditLine {
 
 let n = 0;
 const uid = () => `t${n++}`;
+
+interface Sig {
+  id: string;
+  page: number; // 0-based
+  png: Uint8Array;
+  url: string;
+  aspect: number; // width / height
+  left: number; // PDF points, from page left
+  top: number; // PDF points, from page top
+  width: number; // PDF points
+}
 
 const cssFamily = (f: FontFamily) =>
   f === 'serif' ? 'Georgia, "Times New Roman", serif' : f === 'mono' ? 'ui-monospace, monospace' : 'Arial, Helvetica, sans-serif';
@@ -44,6 +57,8 @@ export default function EditPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [scannedPages, setScannedPages] = useState<Set<number>>(new Set());
+  const [signatures, setSignatures] = useState<Sig[]>([]);
+  const [sigOpen, setSigOpen] = useState(false);
 
   const loaded = useRef<Set<number>>(new Set());
 
@@ -75,6 +90,7 @@ export default function EditPage() {
     setItems([]);
     setSelected(null);
     setScannedPages(new Set());
+    setSignatures([]);
     setPageNum(0);
     setPdf(bytes);
     await loadPage(0, bytes);
@@ -108,6 +124,18 @@ export default function EditPage() {
     setSelected(item.id);
   }
 
+  function addSignature(png: Uint8Array, aspect: number) {
+    const url = URL.createObjectURL(new Blob([png as BlobPart], { type: 'image/png' }));
+    const width = Math.min(220, dim.w * 0.4);
+    const sig: Sig = {
+      id: uid(), page: pageNum, png, url, aspect, width,
+      left: (dim.w - width) / 2,
+      top: (dim.h - width / aspect) / 2,
+    };
+    setSignatures((p) => [...p, sig]);
+    setSigOpen(false);
+  }
+
   async function save() {
     if (!pdf) return;
     setBusy(true);
@@ -118,21 +146,30 @@ export default function EditPage() {
       // everything else on the page stays pristine (original vector text).
       const dirtyItems = items.filter(isDirty);
       const dirtyPages = new Set(dirtyItems.map((it) => it.page));
-      if (dirtyPages.size === 0) {
+      if (dirtyPages.size === 0 && signatures.length === 0) {
         setError('No changes to save yet.');
         return;
       }
-      const pages: PageEdit[] = [...dirtyPages].map((page) => ({
-        page,
-        lines: dirtyItems
-          .filter((it) => it.page === page)
-          .map((it) => ({
-            text: it.text, origin: it.origin, bbox: it.bbox, size: it.size,
-            color: it.color, bold: it.bold, italic: it.italic, family: it.family,
-            font: it.font, bg: it.bg,
-          })),
-      }));
-      const out = await applyEdits(pdf, pages);
+      let out = pdf;
+      if (dirtyPages.size > 0) {
+        const pages: PageEdit[] = [...dirtyPages].map((page) => ({
+          page,
+          lines: dirtyItems
+            .filter((it) => it.page === page)
+            .map((it) => ({
+              text: it.text, origin: it.origin, bbox: it.bbox, size: it.size,
+              color: it.color, bold: it.bold, italic: it.italic, family: it.family,
+              font: it.font, bg: it.bg,
+            })),
+        }));
+        out = await applyEdits(pdf, pages);
+      }
+      if (signatures.length > 0) {
+        const stamps: ImageStamp[] = signatures.map((s) => ({
+          png: s.png, pageIndex: s.page, x: s.left, top: s.top, width: s.width, height: s.width / s.aspect,
+        }));
+        out = await stampImages(out, stamps);
+      }
       downloadBlob(out, 'edited.pdf');
       track('conversion', 'edit');
     } catch (e) {
@@ -162,8 +199,9 @@ export default function EditPage() {
             {loading && <span className="flex items-center gap-1.5 text-xs text-[var(--muted-foreground)]"><Loader2 className="size-3.5 animate-spin" /> Lifting page text…</span>}
             <span className="text-xs text-[var(--muted-foreground)]"><Type className="mb-0.5 mr-1 inline size-3.5" />Click any text to edit it in place, or a blank area to add text</span>
             <div className="ml-auto flex gap-2">
+              <Button variant="outline" onClick={() => setSigOpen(true)}><PenLine /> Add signature</Button>
               <Button onClick={save} disabled={busy}>Download edited PDF</Button>
-              <Button variant="ghost" onClick={() => { setPdf(null); setItems([]); }}>Change file</Button>
+              <Button variant="ghost" onClick={() => { setPdf(null); setItems([]); setSignatures([]); }}>Change file</Button>
             </div>
           </div>
 
@@ -195,13 +233,85 @@ export default function EditPage() {
               {pageItems.map((it) => (
                 <RunItem key={it.id} item={it} scale={scale} dirty={isDirty(it)} selected={selected === it.id} onSelect={() => setSelected(it.id)} onChange={(t) => setText(it.id, t)} />
               ))}
+              {signatures.filter((s) => s.page === pageNum).map((s) => (
+                <SignatureBox
+                  key={s.id}
+                  sig={s}
+                  scale={scale}
+                  onChange={(pa) => setSignatures((p) => p.map((x) => (x.id === s.id ? { ...x, ...pa } : x)))}
+                  onRemove={() => setSignatures((p) => p.filter((x) => x.id !== s.id))}
+                />
+              ))}
             </div>
           </div>
 
           {error && <p className="text-sm text-red-500">{error}</p>}
         </div>
       )}
+
+      {sigOpen && <SignaturePad onClose={() => setSigOpen(false)} onComplete={addSignature} />}
     </ToolShell>
+  );
+}
+
+function SignatureBox({
+  sig, scale, onChange, onRemove,
+}: {
+  sig: Sig; scale: number; onChange: (patch: Partial<Sig>) => void; onRemove: () => void;
+}) {
+  const drag = useRef<{ px: number; py: number; left: number; top: number } | null>(null);
+  const resize = useRef<{ px: number; width: number } | null>(null);
+  const height = sig.width / sig.aspect;
+
+  function onDragDown(e: React.PointerEvent) {
+    e.stopPropagation();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    drag.current = { px: e.clientX, py: e.clientY, left: sig.left, top: sig.top };
+  }
+  function onDragMove(e: React.PointerEvent) {
+    if (!drag.current) return;
+    onChange({
+      left: drag.current.left + (e.clientX - drag.current.px) / scale,
+      top: drag.current.top + (e.clientY - drag.current.py) / scale,
+    });
+  }
+  function onResizeDown(e: React.PointerEvent) {
+    e.stopPropagation();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    resize.current = { px: e.clientX, width: sig.width };
+  }
+  function onResizeMove(e: React.PointerEvent) {
+    if (!resize.current) return;
+    onChange({ width: Math.max(40, resize.current.width + (e.clientX - resize.current.px) / scale) });
+  }
+
+  return (
+    <div
+      className="group absolute ring-1 ring-[var(--brand)]/60 hover:ring-2 hover:ring-[var(--brand)]"
+      style={{ left: sig.left * scale, top: sig.top * scale, width: sig.width * scale, height: height * scale, cursor: 'move' }}
+      onClick={(e) => e.stopPropagation()}
+      onPointerDown={onDragDown}
+      onPointerMove={onDragMove}
+      onPointerUp={() => (drag.current = null)}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={sig.url} alt="Signature" className="pointer-events-none h-full w-full select-none" draggable={false} />
+      <button
+        onClick={(e) => { e.stopPropagation(); onRemove(); }}
+        onPointerDown={(e) => e.stopPropagation()}
+        className="absolute -right-2.5 -top-2.5 grid size-5 place-items-center rounded-full bg-black/60 text-white opacity-0 transition-opacity group-hover:opacity-100"
+        aria-label="Remove signature"
+      >
+        <X className="size-3" />
+      </button>
+      <span
+        onPointerDown={onResizeDown}
+        onPointerMove={onResizeMove}
+        onPointerUp={() => (resize.current = null)}
+        className="absolute -bottom-1.5 -right-1.5 size-3.5 cursor-nwse-resize rounded-full border-2 border-white bg-[var(--brand)] opacity-0 transition-opacity group-hover:opacity-100"
+        aria-hidden
+      />
+    </div>
   );
 }
 

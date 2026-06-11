@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { ProcessingOverlay } from '@/components/ui/Loader';
 import { downloadBlob } from '@/lib/utils';
 import { track } from '@/lib/track';
-import { X, Loader2 } from 'lucide-react';
+import { X, Loader2, RotateCw, Copy } from 'lucide-react';
 
 interface SourceFile {
   id: string;
@@ -24,6 +24,7 @@ interface PageItem {
   fileName: string;
   page: number; // 1-based within its source
   thumb: string;
+  rotation: number; // extra clockwise degrees applied on save
 }
 
 let seq = 0;
@@ -51,7 +52,7 @@ export default function MergePage() {
         try {
           const newItems: PageItem[] = [];
           for (let p = 1; p <= pdf.numPages; p++) {
-            newItems.push({ id: uid(), fileId, fileName: file.name, page: p, thumb: await renderThumbnail(pdf, p) });
+            newItems.push({ id: uid(), fileId, fileName: file.name, page: p, thumb: await renderThumbnail(pdf, p), rotation: 0 });
           }
           setItems((prev) => [...prev, ...newItems]);
         } finally {
@@ -67,6 +68,20 @@ export default function MergePage() {
 
   function remove(id: string) {
     setItems((prev) => prev.filter((it) => it.id !== id));
+  }
+
+  function rotateItem(id: string) {
+    setItems((prev) => prev.map((it) => (it.id === id ? { ...it, rotation: (it.rotation + 90) % 360 } : it)));
+  }
+
+  function duplicateItem(id: string) {
+    setItems((prev) => {
+      const idx = prev.findIndex((it) => it.id === id);
+      if (idx < 0) return prev;
+      const next = [...prev];
+      next.splice(idx + 1, 0, { ...prev[idx]!, id: uid() });
+      return next;
+    });
   }
 
   usePendingDocs((f) => void addFiles(f));
@@ -105,6 +120,7 @@ export default function MergePage() {
       const picks: PagePick[] = items.map((it) => ({
         sourceIndex: files.findIndex((f) => f.id === it.fileId),
         pageNumber: it.page,
+        rotate: it.rotation || undefined,
       }));
       const name = files.length === 1 ? files[0]!.file.name.replace(/\.pdf$/i, '') + '_organised.pdf' : 'merged.pdf';
       const bytes = await assemblePages(sources, picks);
@@ -171,19 +187,38 @@ export default function MergePage() {
                 <span className="absolute left-3 top-3 z-10 grid size-6 place-items-center rounded-full gradient-brand text-xs font-semibold text-white shadow">
                   {i + 1}
                 </span>
-                <button
-                  onClick={() => remove(item.id)}
-                  className="absolute right-3 top-3 z-10 grid size-6 place-items-center rounded-full bg-black/50 text-white opacity-0 transition-opacity hover:bg-red-500 group-hover:opacity-100"
-                  aria-label={`Remove ${item.fileName} page ${item.page}`}
-                >
-                  <X className="size-3.5" />
-                </button>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={item.thumb}
-                  alt={`${item.fileName} page ${item.page}`}
-                  className="pointer-events-none w-full rounded-md border border-[var(--border)] bg-white"
-                />
+                <div className="absolute right-3 top-3 z-10 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                  <button
+                    onClick={() => rotateItem(item.id)}
+                    className="grid size-6 place-items-center rounded-full bg-black/50 text-white hover:bg-black/70"
+                    aria-label={`Rotate ${item.fileName} page ${item.page}`}
+                  >
+                    <RotateCw className="size-3.5" />
+                  </button>
+                  <button
+                    onClick={() => duplicateItem(item.id)}
+                    className="grid size-6 place-items-center rounded-full bg-black/50 text-white hover:bg-black/70"
+                    aria-label={`Duplicate ${item.fileName} page ${item.page}`}
+                  >
+                    <Copy className="size-3.5" />
+                  </button>
+                  <button
+                    onClick={() => remove(item.id)}
+                    className="grid size-6 place-items-center rounded-full bg-black/50 text-white hover:bg-red-500"
+                    aria-label={`Remove ${item.fileName} page ${item.page}`}
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                </div>
+                <div className="overflow-hidden rounded-md border border-[var(--border)] bg-white">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={item.thumb}
+                    alt={`${item.fileName} page ${item.page}`}
+                    style={{ transform: `rotate(${item.rotation}deg)${item.rotation % 180 ? ' scale(0.72)' : ''}` }}
+                    className="pointer-events-none w-full transition-transform"
+                  />
+                </div>
                 <p className="mt-1.5 truncate text-center text-[11px] text-[var(--muted-foreground)]" title={`${item.fileName} · p${item.page}`}>
                   p{item.page}
                 </p>

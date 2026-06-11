@@ -22,6 +22,9 @@ export { getMetadata, setMetadata, getPageCount } from './metadata.js';
 export { imagesToPdf } from './images.js';
 export type { ImageInput, ImagesToPdfOptions } from './images.js';
 
+export { stampImages } from './stamp.js';
+export type { ImageStamp } from './stamp.js';
+
 export { rotatePages, rotateAll, addPageNumbers, addWatermark, cropPages } from './transform.js';
 export type {
   PageNumberOptions,

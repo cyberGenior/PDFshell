@@ -1,4 +1,4 @@
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument, degrees } from 'pdf-lib';
 import type { PdfInput } from './types.js';
 import { loadDocument } from './internal.js';
 
@@ -51,6 +51,8 @@ export interface PagePick {
   sourceIndex: number;
   /** 1-based page number within that source. */
   pageNumber: number;
+  /** Extra clockwise rotation in degrees, added to the page's own rotation. */
+  rotate?: number;
 }
 
 /**
@@ -69,13 +71,17 @@ export async function assemblePages(
   const docs = await Promise.all(sources.map((s) => loadDocument(s)));
   const out = await PDFDocument.create();
 
-  for (const { sourceIndex, pageNumber } of picks) {
+  for (const { sourceIndex, pageNumber, rotate } of picks) {
     const src = docs[sourceIndex];
     if (!src) throw new Error(`No source document at index ${sourceIndex}.`);
     if (pageNumber < 1 || pageNumber > src.getPageCount()) {
       throw new Error(`Page ${pageNumber} is out of range for source ${sourceIndex}.`);
     }
     const [copied] = await out.copyPages(src, [pageNumber - 1]);
+    if (rotate) {
+      const current = copied!.getRotation().angle;
+      copied!.setRotation(degrees((((current + rotate) % 360) + 360) % 360));
+    }
     out.addPage(copied!);
   }
 

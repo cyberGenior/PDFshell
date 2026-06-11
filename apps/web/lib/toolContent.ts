@@ -83,11 +83,30 @@ export const TOOL_CONTENT: Record<string, ToolContent> = {
     steps: [
       'Open your PDF in the editor.',
       'Click any line to edit it in place, or click an empty area to add new text.',
+      'Add a signature: draw or upload one, then drag it into position.',
       'Download your edited PDF — only the lines you changed are rewritten.',
     ],
     faqs: [
       { q: 'Can I edit existing text in a PDF, not just add a text box?', a: 'Yes — click a line and retype it. PDFShell reuses the document’s embedded font and removes the original glyphs so there’s no overlap.' },
+      { q: 'Can I sign a PDF?', a: 'Yes — click “Add signature”, draw it with your mouse or finger (or upload an image), then drag and resize it onto the page. The signature is embedded right in your browser.' },
       { q: 'Can I edit a scanned PDF?', a: 'Yes — scanned pages are read with on-device OCR so you can edit the recognised text, then the edited word is redrawn over the scan.' },
+      PRIVACY_FAQ,
+      FREE_FAQ,
+    ],
+  },
+  '/scan': {
+    heading: 'Scan documents to PDF with your phone',
+    intro:
+      'Use your phone or webcam to photograph paper documents and turn them into a clean, scanner-style PDF. PDFShell boosts contrast and whitens the paper so the result reads like a real scan — and everything happens on your device, with nothing uploaded.',
+    steps: [
+      'Tap “Take a photo” to snap each page (or drop in photos you already have).',
+      'Reorder, rotate or remove pages, and toggle “Clean up” for crisp black-and-white documents.',
+      'Create the PDF and download it — or send it straight to OCR to make it searchable.',
+    ],
+    faqs: [
+      { q: 'How do I scan a document to PDF without an app?', a: 'Open Scan to PDF on your phone, take a photo of each page, and PDFShell assembles them into a single PDF in your browser — no app install and nothing uploaded.' },
+      { q: 'Can I make the scan searchable?', a: 'Yes — after creating the PDF, send it to the OCR tool to recognise the text and save a searchable PDF, all on your device.' },
+      { q: 'Why do my photos look like proper scans?', a: 'The “Clean up” option stretches contrast and whitens the background so a phone photo of a page reads like a flatbed scan. Turn it off for colour pages or photos.' },
       PRIVACY_FAQ,
       FREE_FAQ,
     ],

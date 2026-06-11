@@ -30,6 +30,10 @@ export const PAGES: Record<string, Seo> = {
     title: 'Edit PDF Online',
     description: 'Edit existing text in place and add text anywhere on a PDF, matching the document’s own fonts. Free in-browser PDF editor.',
   },
+  '/scan': {
+    title: 'Scan to PDF — Photo to PDF Scanner',
+    description: 'Turn phone photos of documents into a clean, scanner-style PDF — auto contrast, rotate and reorder. Free, private, in your browser.',
+  },
   '/ocr': {
     title: 'OCR PDF — Scanned PDF to Text',
     description: 'Extract text from scanned PDFs in 100+ languages, entirely in your browser. Free, private OCR — no upload.',

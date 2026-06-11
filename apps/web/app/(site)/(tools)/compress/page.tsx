@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   compressLossless,
   assembleImagePdf,
@@ -8,7 +8,7 @@ import {
   type CompressResult,
 } from '@pdfshell/compress-engine';
 import { compressViaService, ServiceUnavailableError, type CompressPreset } from '@/lib/libreoffice';
-import { renderPdfToImagePages } from '@/lib/pdf/render';
+import { renderPdfToImagePages, loadPdf, renderThumbnail } from '@/lib/pdf/render';
 import { usePendingDoc } from '@/lib/handoff';
 import { usePersistedState } from '@/lib/usePersistedState';
 import { ToolShell } from '@/components/pdf/ToolShell';
@@ -36,8 +36,39 @@ export default function CompressPage() {
   const [result, setResult] = useState<CompressResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [serviceDown, setServiceDown] = useState(false);
+  const [preview, setPreview] = useState<{ before: string; after: string } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const cancelledRef = useRef(false);
+
+  // First-page thumbnails of the original vs the compressed result, so the user
+  // can see at a glance that nothing was lost (or how flatten changed the page).
+  useEffect(() => {
+    let cancelled = false;
+    if (!file || !result || result.outcome !== 'smaller') {
+      setPreview(null);
+      return;
+    }
+    const thumb = async (bytes: Uint8Array) => {
+      const pdf = await loadPdf(bytes);
+      try {
+        return await renderThumbnail(pdf, 1, 220);
+      } finally {
+        await pdf.destroy();
+      }
+    };
+    (async () => {
+      try {
+        const before = await thumb(new Uint8Array(await file.arrayBuffer()));
+        const after = await thumb(result.bytes);
+        if (!cancelled) setPreview({ before, after });
+      } catch {
+        /* preview is decorative — the result still works without it */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [file, result]);
 
   function reset(next: File | null) {
     setFile(next);
@@ -191,6 +222,30 @@ export default function CompressPage() {
             </div>
           )}
           {error && <p className="text-sm text-red-500">{error}</p>}
+
+          {preview && result && (
+            <div className="grid grid-cols-2 gap-3">
+              {([
+                { label: 'Before', url: preview.before, size: result.originalSize, dim: false },
+                { label: 'After', url: preview.after, size: result.compressedSize, dim: true },
+              ] as const).map((side) => (
+                <figure key={side.label} className="flex flex-col items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={side.url}
+                    alt={`${side.label}: first page`}
+                    className="max-h-64 w-auto rounded-md border border-[var(--border)] bg-white shadow-sm"
+                  />
+                  <figcaption className="text-center text-xs">
+                    <span className="font-medium">{side.label}</span>
+                    <span className={'ml-1.5 ' + (side.dim ? 'text-[oklch(0.55_0.15_150)] font-semibold' : 'text-[var(--muted-foreground)]')}>
+                      {formatBytes(side.size)}
+                    </span>
+                  </figcaption>
+                </figure>
+              ))}
+            </div>
+          )}
 
           {result && (
             <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-4 text-sm">

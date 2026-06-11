@@ -10,6 +10,7 @@ import {
   Droplets,
   Crop,
   Lock,
+  ScanLine,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -62,6 +63,15 @@ export const TOOLS: ToolMeta[] = [
     description: 'Add text anywhere on a PDF — drag to place, and match the document’s own font.',
     icon: Pencil,
     phase: 1,
+    ready: true,
+  },
+  {
+    slug: 'scan',
+    name: 'Scan to PDF',
+    tagline: 'Photos of pages → clean PDF',
+    description: 'Snap photos of your documents and turn them into a clean, scanner-style PDF — right on your phone.',
+    icon: ScanLine,
+    phase: 3,
     ready: true,
   },
   {

@@ -1,9 +1,12 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Sparkles, X } from 'lucide-react';
 import { useHandoff } from '@/lib/handoff';
 import { track } from '@/lib/track';
+
+const HINT_KEY = 'pdfshell:chain-hint';
 
 interface Target {
   slug: string;
@@ -41,15 +44,47 @@ export function SendToTools({
 }) {
   const router = useRouter();
   const put = useHandoff((s) => s.put);
+  const [showHint, setShowHint] = useState(false);
+
+  // A one-time nudge so first-timers notice the chaining strip exists.
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem(HINT_KEY)) setShowHint(true);
+    } catch {
+      /* private mode / storage blocked — just skip the hint */
+    }
+  }, []);
+
+  function dismissHint() {
+    try {
+      localStorage.setItem(HINT_KEY, '1');
+    } catch {
+      /* ignore */
+    }
+    setShowHint(false);
+  }
 
   function send(slug: string) {
+    dismissHint();
     put({ bytes, name });
     track('tool_used', `chain:${exclude}->${slug}`);
     router.push(`/${slug}`);
   }
 
   return (
-    <div className="border-t border-[var(--border)] pt-3">
+    <div className="relative border-t border-[var(--border)] pt-3">
+      {showHint && (
+        <div className="mb-2 flex items-start gap-2 rounded-xl border border-[var(--brand)] bg-[color-mix(in_oklch,var(--brand)_8%,transparent)] p-2.5 text-xs">
+          <Sparkles className="mt-0.5 size-4 shrink-0 text-[var(--brand)]" />
+          <p className="flex-1">
+            <strong className="font-semibold">New:</strong> send this file straight into another tool — no re-uploading,
+            and it never leaves your device.
+          </p>
+          <button onClick={dismissHint} aria-label="Dismiss tip" className="rounded-full p-0.5 hover:bg-[var(--surface-2)]">
+            <X className="size-3.5" />
+          </button>
+        </div>
+      )}
       <p className="text-xs font-medium text-[var(--muted-foreground)]">
         Keep working with another tool — no need to add the file again.
       </p>
