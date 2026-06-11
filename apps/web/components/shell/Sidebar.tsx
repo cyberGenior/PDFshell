@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Home, ShieldCheck, Github, X, BookOpen } from 'lucide-react';
+import { Home, ShieldCheck, Github, X, BookOpen, Workflow } from 'lucide-react';
 import { TOOLS } from '@/lib/tools';
 import { IconTile } from '@/components/ui/icon-tile';
 import { InstallPrompt } from '@/components/shell/InstallPrompt';
@@ -18,6 +18,7 @@ interface NavItem {
 }
 
 const HOME: NavItem = { href: '/', label: 'Home', icon: Home, ready: true };
+const FLOWS_ITEM: NavItem = { href: '/flows', label: 'Workflows', icon: Workflow, ready: true };
 const GUIDES_ITEM: NavItem = { href: '/guides', label: 'Guides', icon: BookOpen, ready: true };
 const TOOL_ITEMS: NavItem[] = TOOLS.map((t) => ({
   href: `/${t.slug}`,
@@ -60,6 +61,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
       <nav className="flex-1 overflow-y-auto">
         <NavLink item={HOME} active={isActive(HOME.href)} onNavigate={onNavigate} />
+        <NavLink item={FLOWS_ITEM} active={isActive(FLOWS_ITEM.href)} onNavigate={onNavigate} />
 
         <Group label="Tools" />
         <div className="flex flex-col gap-1">

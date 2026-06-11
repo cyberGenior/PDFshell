@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Home, BookOpen, Search, CornerDownLeft } from 'lucide-react';
+import { Home, BookOpen, Search, CornerDownLeft, Workflow } from 'lucide-react';
 import { TOOLS } from '@/lib/tools';
 import { IconTile } from '@/components/ui/icon-tile';
 
@@ -16,6 +16,7 @@ interface Command {
 
 const COMMANDS: Command[] = [
   { href: '/', label: 'Home', hint: 'Start over', icon: Home },
+  { href: '/flows', label: 'Workflows', hint: 'One-click multi-step tasks', icon: Workflow },
   ...TOOLS.filter((t) => t.ready).map((t) => ({ href: `/${t.slug}`, label: t.name, hint: t.tagline, icon: t.icon })),
   { href: '/guides', label: 'Guides', hint: 'How-tos & tips', icon: BookOpen },
 ];

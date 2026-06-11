@@ -1,10 +1,15 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Check, Download, Share2 } from 'lucide-react';
+import { Check, Download, Share2, Clock, ArrowRight } from 'lucide-react';
 import { loadPdf, renderThumbnail } from '@/lib/pdf/render';
 import { recordResult } from '@/lib/stats';
+import { keepOutput } from '@/lib/vault';
+import { useHandoff } from '@/lib/handoff';
+import { useActiveFlow, advanceFlow, exitFlow } from '@/lib/flows';
+import { getTool } from '@/lib/tools';
 import { SendToTools } from '@/components/pdf/SendToTools';
 import { Button } from '@/components/ui/button';
 import { downloadBlob, formatBytes } from '@/lib/utils';
@@ -30,7 +35,17 @@ export function ResultCard({ bytes, name, tool, originalSize, mimeType = 'applic
   const [thumb, setThumb] = useState<string | null>(null);
   const [canShare, setCanShare] = useState(false);
   const [shared, setShared] = useState(false);
+  const [kept, setKept] = useState(false);
   const recorded = useRef(false);
+  const router = useRouter();
+  const put = useHandoff((s) => s.put);
+  const active = useActiveFlow();
+
+  // When this tool is the current step of a running workflow, offer to continue.
+  const flowNextSlug =
+    active && active.flow.steps[active.step] === tool ? active.flow.steps[active.step + 1] : undefined;
+  const flowNextTool = flowNextSlug ? getTool(flowNextSlug) : undefined;
+  const flowIsLast = !!active && active.flow.steps[active.step] === tool && active.step === active.flow.steps.length - 1;
 
   // Count the result once per card (not per re-render).
   useEffect(() => {
@@ -75,6 +90,24 @@ export function ResultCard({ bytes, name, tool, originalSize, mimeType = 'applic
     } catch {
       /* user dismissed the share sheet — not an error */
     }
+  }
+
+  async function keep() {
+    try {
+      await keepOutput({ name, bytes, tool, mime: mimeType });
+      setKept(true);
+      track('tool_used', `keep:${tool}`);
+    } catch {
+      /* storage blocked (private mode / quota) — nothing to recover */
+    }
+  }
+
+  function continueFlow() {
+    if (!flowNextSlug) return;
+    put({ bytes, name });
+    track('tool_used', `flow:${tool}->${flowNextSlug}`);
+    advanceFlow();
+    router.push(`/${flowNextSlug}`);
   }
 
   const saved = originalSize !== undefined ? originalSize - bytes.byteLength : 0;
@@ -124,7 +157,32 @@ export function ResultCard({ bytes, name, tool, originalSize, mimeType = 'applic
             <Share2 /> {shared ? 'Share again' : 'Share'}
           </Button>
         )}
+        <Button size="sm" variant="ghost" onClick={keep} disabled={kept}>
+          <Clock /> {kept ? 'Kept for 7 days' : 'Keep on this device'}
+        </Button>
       </div>
+      {kept && (
+        <p className="-mt-1 text-xs text-[var(--muted-foreground)]">
+          Saved to this device only — find it under “Recent files”, auto-deleted after 7 days.
+        </p>
+      )}
+
+      {flowNextTool && (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-[var(--brand)] bg-[color-mix(in_oklch,var(--brand)_8%,transparent)] p-3">
+          <p className="text-sm">
+            Next in your workflow: <strong>{flowNextTool.name}</strong>
+          </p>
+          <Button size="sm" variant="brand" onClick={continueFlow}>
+            Continue <ArrowRight />
+          </Button>
+        </div>
+      )}
+      {flowIsLast && (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
+          <p className="text-sm text-[var(--muted-foreground)]">Workflow complete 🎉</p>
+          <Button size="sm" variant="ghost" onClick={exitFlow}>Finish</Button>
+        </div>
+      )}
 
       <SendToTools bytes={bytes} name={name} exclude={tool} />
     </motion.div>

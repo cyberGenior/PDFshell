@@ -3,10 +3,11 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Search, ArrowRight, ShieldCheck, Star, History } from 'lucide-react';
+import { Search, ArrowRight, ShieldCheck, Star, History, Workflow } from 'lucide-react';
 import { TOOLS, getTool } from '@/lib/tools';
 import { useLocalStats } from '@/lib/stats';
 import { UniversalDrop } from '@/components/home/UniversalDrop';
+import { RecentFiles } from '@/components/home/RecentFiles';
 import { IconTile } from '@/components/ui/icon-tile';
 import { AdSlot } from '@/components/ads/AdSlot';
 import { formatBytes } from '@/lib/utils';
@@ -78,6 +79,9 @@ export default function HomePage() {
       {/* Sponsor slot — renders nothing if no active banner ad. */}
       <AdSlot placement="landing-banner" />
 
+      {/* Device-local vault of kept outputs (renders nothing until you keep one). */}
+      <RecentFiles />
+
       {/* Pick up where you left off. */}
       {recent.length > 0 && (
         <section className="flex flex-col gap-3">
@@ -98,6 +102,23 @@ export default function HomePage() {
           </div>
         </section>
       )}
+
+      {/* One-click workflows entry point */}
+      <Link
+        href="/flows"
+        className="card-shadow group flex items-center gap-4 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 transition-colors hover:border-[var(--ring)]"
+      >
+        <IconTile size="lg" active>
+          <Workflow />
+        </IconTile>
+        <div className="min-w-0 flex-1">
+          <h2 className="font-semibold tracking-tight">One-click workflows</h2>
+          <p className="mt-0.5 text-sm text-[var(--muted-foreground)]">
+            Multi-step tasks done in one guided flow — scan &amp; clean up, scan to searchable text, combine &amp; compress.
+          </p>
+        </div>
+        <ArrowRight className="size-4 shrink-0 -translate-x-1 text-[var(--muted-foreground)] opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100" />
+      </Link>
 
       {/* Tools */}
       <section className="flex flex-col gap-5">

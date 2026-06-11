@@ -34,6 +34,10 @@ export const PAGES: Record<string, Seo> = {
     title: 'Scan to PDF — Photo to PDF Scanner',
     description: 'Turn phone photos of documents into a clean, scanner-style PDF — auto contrast, rotate and reorder. Free, private, in your browser.',
   },
+  '/flows': {
+    title: 'One-Click PDF Workflows',
+    description: 'Run common multi-step PDF tasks in one guided flow — scan & clean up, scan to searchable text, combine & compress. Free and private.',
+  },
   '/ocr': {
     title: 'OCR PDF — Scanned PDF to Text',
     description: 'Extract text from scanned PDFs in 100+ languages, entirely in your browser. Free, private OCR — no upload.',

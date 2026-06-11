@@ -6,6 +6,7 @@ import { Sidebar } from '@/components/shell/Sidebar';
 import { TopBar } from '@/components/shell/TopBar';
 import { MobileTabBar } from '@/components/shell/MobileTabBar';
 import { CommandPalette } from '@/components/shell/CommandPalette';
+import { FlowBar } from '@/components/flow/FlowBar';
 
 /**
  * The persistent application chrome: a fixed sidebar on desktop, a slide-in
@@ -63,7 +64,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar onMenu={() => setDrawerOpen(true)} />
         <main className="flex-1 px-4 py-6 pb-24 sm:px-6 lg:px-8 md:pb-6">
-          <div className="mx-auto w-full max-w-5xl">{children}</div>
+          <div className="mx-auto w-full max-w-5xl">
+            <FlowBar />
+            {children}
+          </div>
         </main>
       </div>
 
