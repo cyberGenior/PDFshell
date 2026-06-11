@@ -3,16 +3,19 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Search, ArrowRight, ShieldCheck, Star } from 'lucide-react';
-import { TOOLS } from '@/lib/tools';
+import { Search, ArrowRight, ShieldCheck, Star, History } from 'lucide-react';
+import { TOOLS, getTool } from '@/lib/tools';
+import { useLocalStats } from '@/lib/stats';
+import { UniversalDrop } from '@/components/home/UniversalDrop';
 import { IconTile } from '@/components/ui/icon-tile';
-import { Button } from '@/components/ui/button';
 import { AdSlot } from '@/components/ads/AdSlot';
+import { formatBytes } from '@/lib/utils';
 
 const POWERED_BY = ['pdf-lib', 'PDF.js', 'Tesseract', 'LibreOffice', 'jsPDF', 'mammoth'];
 
 export default function HomePage() {
   const [query, setQuery] = useState('');
+  const stats = useLocalStats();
   const tools = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return TOOLS;
@@ -21,32 +24,50 @@ export default function HomePage() {
     );
   }, [query]);
 
+  const recent = stats.recentTools.map(getTool).filter((t) => !!t);
+
   return (
     <div className="flex flex-col gap-14">
-      {/* Hero */}
+      {/* Hero — the drop zone IS the call to action. */}
       <section className="flex flex-col items-center gap-6 pt-6 text-center">
         <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1 text-xs font-medium text-[var(--muted-foreground)]">
           <ShieldCheck className="size-3.5 text-[var(--brand)]" />
           No uploads · No accounts · 100% in your browser
         </span>
         <h1 className="max-w-3xl font-serif text-5xl font-medium leading-[1.05] tracking-tight sm:text-6xl">
-          Every PDF tool, right where your files already are.
+          Drop a file. Get it done.
         </h1>
         <p className="max-w-xl text-lg text-[var(--muted-foreground)]">
           Merge, split, compress, rotate, watermark, OCR, convert and protect — processed on your
           device wherever possible. Private by default, fast on a slow connection.
         </p>
-        <div className="flex flex-wrap justify-center gap-3">
-          <Link href="/merge"><Button size="lg">Start with Merge <ArrowRight /></Button></Link>
-          <Link href="/ocr"><Button size="lg" variant="outline">Try OCR</Button></Link>
-        </div>
 
-        {/* Floating stat composition */}
-        <div className="relative mt-6 w-full max-w-3xl">
+        <UniversalDrop />
+
+        {/* Personalised when you've used it; honest defaults when you haven't. */}
+        <div className="relative mt-4 w-full max-w-3xl">
           <div className="mx-auto grid max-w-md grid-cols-1 gap-3 sm:max-w-none sm:grid-cols-3">
             <StatCard fill="var(--c-mint)" ink="var(--c-mint-ink)" big="0" label="uploads, ever" />
-            <StatCard fill="var(--c-sky)" ink="var(--c-sky-ink)" big="11" label="tools in your pocket" />
-            <StatCard fill="var(--c-yellow)" ink="var(--c-yellow-ink)" big="100+" label="OCR languages" />
+            {stats.files > 0 ? (
+              <StatCard
+                fill="var(--c-sky)"
+                ink="var(--c-sky-ink)"
+                big={String(stats.files)}
+                label={`file${stats.files === 1 ? '' : 's'} you processed — all on this device`}
+              />
+            ) : (
+              <StatCard fill="var(--c-sky)" ink="var(--c-sky-ink)" big="11" label="tools in your pocket" />
+            )}
+            {stats.savedBytes > 0 ? (
+              <StatCard
+                fill="var(--c-yellow)"
+                ink="var(--c-yellow-ink)"
+                big={formatBytes(stats.savedBytes)}
+                label="of file size you've saved"
+              />
+            ) : (
+              <StatCard fill="var(--c-yellow)" ink="var(--c-yellow-ink)" big="100+" label="OCR languages" />
+            )}
           </div>
           <div className="pointer-events-none absolute -left-2 -top-3 hidden rotate-[-6deg] rounded-2xl bg-[var(--c-lavender)] px-3 py-1.5 text-xs font-medium text-[var(--c-lavender-ink)] shadow-sm lg:block">
             <Star className="mb-0.5 mr-1 inline size-3.5 fill-current" /> Privacy-first
@@ -56,6 +77,27 @@ export default function HomePage() {
 
       {/* Sponsor slot — renders nothing if no active banner ad. */}
       <AdSlot placement="landing-banner" />
+
+      {/* Pick up where you left off. */}
+      {recent.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">
+            <History className="size-3.5" /> Recently used
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {recent.map((tool) => (
+              <Link
+                key={tool.slug}
+                href={`/${tool.slug}`}
+                className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--card)] px-4 py-2 text-sm font-medium transition-colors hover:border-[var(--brand)] hover:text-[var(--brand)]"
+              >
+                <tool.icon className="size-4" /> {tool.name}
+                <ArrowRight className="size-3" />
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Tools */}
       <section className="flex flex-col gap-5">

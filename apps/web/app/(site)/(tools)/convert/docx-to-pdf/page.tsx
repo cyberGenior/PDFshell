@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { convertDocxToPdf } from '@/lib/convert';
+import { usePendingDoc } from '@/lib/handoff';
 import { ConvertHeader } from '@/components/pdf/ConvertHeader';
 import { DropZone } from '@/components/pdf/DropZone';
 import { Button } from '@/components/ui/button';
@@ -13,6 +14,8 @@ export default function DocxToPdfPage() {
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  usePendingDoc((f) => setFile(f));
 
   async function convert() {
     if (!file) return;

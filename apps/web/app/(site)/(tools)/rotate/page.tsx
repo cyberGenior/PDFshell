@@ -6,7 +6,7 @@ import { loadPdf, renderThumbnail } from '@/lib/pdf/render';
 import { usePendingDoc } from '@/lib/handoff';
 import { ToolShell } from '@/components/pdf/ToolShell';
 import { DropZone } from '@/components/pdf/DropZone';
-import { SendToTools } from '@/components/pdf/SendToTools';
+import { ResultCard } from '@/components/pdf/ResultCard';
 import { Button } from '@/components/ui/button';
 import { ProcessingOverlay } from '@/components/ui/Loader';
 import { downloadBlob } from '@/lib/utils';
@@ -169,7 +169,7 @@ export default function RotatePage() {
             )}
           </div>
 
-          {result && <SendToTools bytes={result.bytes} name={result.name} exclude="rotate" />}
+          {result && <ResultCard bytes={result.bytes} name={result.name} tool="rotate" />}
         </div>
       )}
     </ToolShell>

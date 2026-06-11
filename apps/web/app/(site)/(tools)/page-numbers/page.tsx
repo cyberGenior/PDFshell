@@ -7,7 +7,7 @@ import { usePendingDoc } from '@/lib/handoff';
 import { usePersistedState } from '@/lib/usePersistedState';
 import { ToolShell } from '@/components/pdf/ToolShell';
 import { DropZone } from '@/components/pdf/DropZone';
-import { SendToTools } from '@/components/pdf/SendToTools';
+import { ResultCard } from '@/components/pdf/ResultCard';
 import { Button } from '@/components/ui/button';
 import { ProcessingOverlay } from '@/components/ui/Loader';
 import { downloadBlob, formatBytes, cn } from '@/lib/utils';
@@ -178,7 +178,7 @@ export default function PageNumbersPage() {
               </Button>
             </div>
 
-            {result && <SendToTools bytes={result.bytes} name={result.name} exclude="page-numbers" />}
+            {result && <ResultCard bytes={result.bytes} name={result.name} tool="page-numbers" />}
           </div>
 
           {/* Live preview of where the number lands on page 1. */}

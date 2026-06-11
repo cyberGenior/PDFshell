@@ -1,10 +1,19 @@
+'use client';
+
+import { useEffect } from 'react';
 import { getTool } from '@/lib/tools';
+import { recordToolVisit } from '@/lib/stats';
 import { IconTile } from '@/components/ui/icon-tile';
 
 /** Title block shared by every tool page, driven by the tool registry. */
 export function ToolShell({ slug, children }: { slug: string; children: React.ReactNode }) {
   const tool = getTool(slug);
   const Icon = tool?.icon;
+
+  // Feed the landing page's "recently used" row (device-local only).
+  useEffect(() => {
+    recordToolVisit(slug);
+  }, [slug]);
 
   return (
     <div className="flex flex-col gap-6">

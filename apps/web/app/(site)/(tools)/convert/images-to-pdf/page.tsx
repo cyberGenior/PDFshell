@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { convertImagesToPdf } from '@/lib/convert';
+import { usePendingDocs } from '@/lib/handoff';
 import { ConvertHeader } from '@/components/pdf/ConvertHeader';
 import { DropZone } from '@/components/pdf/DropZone';
 import { Button } from '@/components/ui/button';
@@ -13,6 +14,8 @@ export default function ImagesToPdfPage() {
   const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  usePendingDocs((f) => setFiles((prev) => [...prev, ...f]));
 
   async function convert() {
     if (files.length === 0) return;

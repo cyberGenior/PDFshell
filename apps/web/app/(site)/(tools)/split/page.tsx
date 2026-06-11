@@ -6,7 +6,7 @@ import { usePendingDoc } from '@/lib/handoff';
 import { ToolShell } from '@/components/pdf/ToolShell';
 import { DropZone } from '@/components/pdf/DropZone';
 import { PdfPreview } from '@/components/pdf/PdfPreview';
-import { SendToTools } from '@/components/pdf/SendToTools';
+import { ResultCard } from '@/components/pdf/ResultCard';
 import { Button } from '@/components/ui/button';
 import { ProcessingOverlay } from '@/components/ui/Loader';
 import { downloadBlob, formatBytes } from '@/lib/utils';
@@ -150,7 +150,7 @@ export default function SplitPage() {
             )}
           </div>
 
-          {result && <SendToTools bytes={result.bytes} name={result.name} exclude="split" />}
+          {result && <ResultCard bytes={result.bytes} name={result.name} tool="split" originalSize={file.size} />}
         </div>
       )}
     </ToolShell>

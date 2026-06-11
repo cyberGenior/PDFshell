@@ -25,8 +25,9 @@ const TARGETS: Target[] = [
 ];
 
 /**
- * "Continue with…" strip shown after a tool produces a PDF. Hands the result
- * to the next tool in memory, so the user keeps working without re-uploading.
+ * "Continue with…" strip shown after a tool produces a PDF (usually inside
+ * ResultCard). Hands the result to the next tool in memory, so the user keeps
+ * working without re-uploading.
  */
 export function SendToTools({
   bytes,
@@ -48,20 +49,17 @@ export function SendToTools({
   }
 
   return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
-      <p className="text-sm font-medium">
-        Keep working with <span className="text-[var(--brand)]">{name}</span>
+    <div className="border-t border-[var(--border)] pt-3">
+      <p className="text-xs font-medium text-[var(--muted-foreground)]">
+        Keep working with another tool — no need to add the file again.
       </p>
-      <p className="mt-0.5 text-xs text-[var(--muted-foreground)]">
-        Send the result straight to another tool — no need to add the file again.
-      </p>
-      <div className="mt-3 flex flex-wrap gap-2">
+      <div className="mt-2 flex flex-wrap gap-2">
         {TARGETS.filter((t) => t.slug !== exclude).map((t) => (
           <button
             key={t.slug}
             type="button"
             onClick={() => send(t.slug)}
-            className="inline-flex items-center gap-1 rounded-full border border-[var(--border)] bg-[var(--card)] px-3 py-1.5 text-xs font-medium transition-colors hover:border-[var(--brand)] hover:text-[var(--brand)]"
+            className="inline-flex items-center gap-1 rounded-full border border-[var(--border)] bg-[var(--card)] px-3 py-1.5 text-xs font-medium transition-colors hover:border-[var(--brand)] hover:text-[var(--brand)] focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
           >
             {t.label} <ArrowRight className="size-3" />
           </button>

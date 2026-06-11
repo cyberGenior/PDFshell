@@ -7,7 +7,7 @@ import { usePendingDoc } from '@/lib/handoff';
 import { usePersistedState } from '@/lib/usePersistedState';
 import { ToolShell } from '@/components/pdf/ToolShell';
 import { DropZone } from '@/components/pdf/DropZone';
-import { SendToTools } from '@/components/pdf/SendToTools';
+import { ResultCard } from '@/components/pdf/ResultCard';
 import { Button } from '@/components/ui/button';
 import { ProcessingOverlay } from '@/components/ui/Loader';
 import { downloadBlob, formatBytes } from '@/lib/utils';
@@ -150,7 +150,7 @@ export default function WatermarkPage() {
               </Button>
             </div>
 
-            {result && <SendToTools bytes={result.bytes} name={result.name} exclude="watermark" />}
+            {result && <ResultCard bytes={result.bytes} name={result.name} tool="watermark" />}
           </div>
 
           {/* Live CSS approximation of the stamped result. */}

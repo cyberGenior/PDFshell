@@ -13,7 +13,7 @@ import { usePendingDoc } from '@/lib/handoff';
 import { usePersistedState } from '@/lib/usePersistedState';
 import { ToolShell } from '@/components/pdf/ToolShell';
 import { DropZone } from '@/components/pdf/DropZone';
-import { SendToTools } from '@/components/pdf/SendToTools';
+import { ResultCard } from '@/components/pdf/ResultCard';
 import { Button } from '@/components/ui/button';
 import { ProcessingOverlay } from '@/components/ui/Loader';
 import { downloadBlob, formatBytes } from '@/lib/utils';
@@ -224,7 +224,7 @@ export default function CompressPage() {
           </div>
 
           {result && result.outcome === 'smaller' && (
-            <SendToTools bytes={result.bytes} name={outName} exclude="compress" />
+            <ResultCard bytes={result.bytes} name={outName} tool="compress" originalSize={result.originalSize} />
           )}
         </div>
       )}

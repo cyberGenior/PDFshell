@@ -4,10 +4,10 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { assemblePages, type PagePick } from '@pdfshell/pdf-core';
 import { loadPdf, renderThumbnail } from '@/lib/pdf/render';
-import { usePendingDoc } from '@/lib/handoff';
+import { usePendingDocs } from '@/lib/handoff';
 import { ToolShell } from '@/components/pdf/ToolShell';
 import { DropZone } from '@/components/pdf/DropZone';
-import { SendToTools } from '@/components/pdf/SendToTools';
+import { ResultCard } from '@/components/pdf/ResultCard';
 import { Button } from '@/components/ui/button';
 import { ProcessingOverlay } from '@/components/ui/Loader';
 import { downloadBlob } from '@/lib/utils';
@@ -69,7 +69,7 @@ export default function MergePage() {
     setItems((prev) => prev.filter((it) => it.id !== id));
   }
 
-  usePendingDoc((f) => void addFiles([f]));
+  usePendingDocs((f) => void addFiles(f));
 
   /** Move the dragged tile so it lands at `to` (insert before that position). */
   function reorder(from: number, to: number) {
@@ -202,7 +202,7 @@ export default function MergePage() {
             </Button>
           </div>
 
-          {result && <SendToTools bytes={result.bytes} name={result.name} exclude="merge" />}
+          {result && <ResultCard bytes={result.bytes} name={result.name} tool="merge" />}
         </div>
       )}
     </ToolShell>
