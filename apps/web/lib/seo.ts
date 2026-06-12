@@ -96,6 +96,23 @@ export const PAGES: Record<string, Seo> = {
   },
 };
 
+/**
+ * Stable sitemap <lastmod> dates. Google distrusts a lastmod that changes on
+ * every fetch (the old `new Date()`), so these are fixed and only bumped when a
+ * route's CONTENT actually changes. `CONTENT_REVISED` is the default; override a
+ * specific route in `ROUTE_UPDATED` when only that page changed.
+ */
+export const CONTENT_REVISED = '2026-06-12';
+export const ROUTE_UPDATED: Record<string, string> = {
+  '/scan': '2026-06-11',
+  '/flows': '2026-06-11',
+};
+
+/** The <lastmod> date (YYYY-MM-DD) for a tool/convert route. */
+export function routeLastModified(path: string): string {
+  return ROUTE_UPDATED[path] ?? CONTENT_REVISED;
+}
+
 /** Build per-page Metadata (title, description, canonical, OG/Twitter) for a route. */
 export function pageMeta(path: string): Metadata {
   const p = PAGES[path];

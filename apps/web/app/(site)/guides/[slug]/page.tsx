@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { ArrowRight, ArrowLeft } from 'lucide-react';
 import { GUIDES, getGuide } from '@/lib/guides';
 import { SITE_NAME, SITE_URL } from '@/lib/seo';
+import { organization } from '@/lib/jsonLd';
 
 export function generateStaticParams() {
   return GUIDES.map((g) => ({ slug: g.slug }));
@@ -33,7 +34,10 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
       headline: g.title,
       description: g.description,
       mainEntityOfPage: `${SITE_URL}/guides/${g.slug}`,
-      publisher: { '@type': 'Organization', name: SITE_NAME, url: SITE_URL },
+      datePublished: g.published,
+      dateModified: g.updated ?? g.published,
+      author: organization(),
+      publisher: organization(),
     },
     {
       '@context': 'https://schema.org',

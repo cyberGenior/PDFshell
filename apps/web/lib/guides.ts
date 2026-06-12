@@ -17,6 +17,10 @@ export interface Guide {
   sections: GuideSection[];
   faqs: { q: string; a: string }[];
   tool: { href: string; label: string };
+  /** ISO date (YYYY-MM-DD) first published — drives Article schema + sitemap. */
+  published: string;
+  /** ISO date last meaningfully revised; defaults to `published`. */
+  updated?: string;
 }
 
 export const GUIDES: Guide[] = [
@@ -49,6 +53,7 @@ export const GUIDES: Guide[] = [
       { q: 'Is there a page or size limit?', a: 'No artificial limits, no watermark, and no sign-up.' },
     ],
     tool: { href: '/merge', label: 'Open the Merge tool' },
+    published: '2026-05-24',
   },
   {
     slug: 'convert-pdf-to-excel-free',
@@ -79,6 +84,7 @@ export const GUIDES: Guide[] = [
       { q: 'Does it handle multi-page reports?', a: 'Yes — each page becomes a sheet, preserving the report’s structure.' },
     ],
     tool: { href: '/convert/pdf-to-excel', label: 'Open PDF to Excel' },
+    published: '2026-05-26',
   },
   {
     slug: 'edit-pdf-free-online',
@@ -109,6 +115,7 @@ export const GUIDES: Guide[] = [
       { q: 'Is there a watermark?', a: 'No watermark, no sign-up, completely free.' },
     ],
     tool: { href: '/edit', label: 'Open the Edit tool' },
+    published: '2026-05-28',
   },
   {
     slug: 'ocr-scanned-pdf-to-text',
@@ -139,6 +146,7 @@ export const GUIDES: Guide[] = [
       { q: 'Can I get a searchable PDF out?', a: 'Yes — export a PDF with a hidden text layer so it’s searchable and selectable.' },
     ],
     tool: { href: '/ocr', label: 'Open the OCR tool' },
+    published: '2026-05-30',
   },
   {
     slug: 'compress-pdf-for-email',
@@ -169,6 +177,7 @@ export const GUIDES: Guide[] = [
       { q: 'Is it free and private?', a: 'Yes — lossless compression runs in your browser, free and with nothing uploaded.' },
     ],
     tool: { href: '/compress', label: 'Open the Compress tool' },
+    published: '2026-06-01',
   },
 ];
 

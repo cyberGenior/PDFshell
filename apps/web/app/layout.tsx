@@ -3,6 +3,7 @@ import { ServiceWorkerRegistrar } from '@/components/ServiceWorkerRegistrar';
 import { GoogleAnalytics } from '@/components/analytics/GoogleAnalytics';
 import { AdSenseScript } from '@/components/ads/AdSense';
 import { SITE_NAME, SITE_URL, SITE_DESCRIPTION } from '@/lib/seo';
+import { organization, website, ldGraph } from '@/lib/jsonLd';
 import './globals.css';
 
 const DEFAULT_TITLE = 'PDFShell — Free, privacy-first PDF tools';
@@ -75,6 +76,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }}
+        />
+        {/* Site-wide Organization + WebSite (sitelinks searchbox). Root only. */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(ldGraph([organization(), website()])) }}
         />
         <ServiceWorkerRegistrar />
         <GoogleAnalytics />

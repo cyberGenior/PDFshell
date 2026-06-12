@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Search, ArrowRight, ShieldCheck, Star, History, Workflow } from 'lucide-react';
@@ -17,6 +17,13 @@ const POWERED_BY = ['pdf-lib', 'PDF.js', 'Tesseract', 'LibreOffice', 'jsPDF', 'm
 export default function HomePage() {
   const [query, setQuery] = useState('');
   const stats = useLocalStats();
+
+  // Honour ?q= so the WebSite SearchAction (sitelinks searchbox) lands on a real,
+  // pre-filtered tool list rather than a dead URL.
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get('q');
+    if (q) setQuery(q);
+  }, []);
   const tools = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return TOOLS;
