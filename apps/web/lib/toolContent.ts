@@ -3,9 +3,9 @@
  * Rendered by <ToolSeoContent /> below the tool widget and emitted as FAQ
  * structured data. Fixes "thin content" (a bare tool widget rarely ranks).
  *
- * Keyed by route path (same keys as PAGES in lib/seo.ts). The /convert hub is
- * intentionally omitted — its layout wraps the sub-pages, so content there would
- * duplicate onto every sub-page.
+ * Keyed by route path (same keys as PAGES in lib/seo.ts). Each route's layout
+ * renders <ToolSeoContent path="..."> with its OWN path, so the /convert hub entry
+ * shows only on /convert (sub-pages pass their own path) — no duplication.
  */
 export interface ToolContent {
   heading: string;
@@ -31,7 +31,7 @@ export const TOOL_CONTENT: Record<string, ToolContent> = {
   '/merge': {
     heading: 'Merge and organize PDF files online',
     intro:
-      'Combine several PDFs into one document and drag pages into any order — free, and right in your browser so nothing is uploaded. Reorder, remove and rearrange pages, then download a single clean PDF.',
+      'Combining PDFs shouldn’t mean uploading private documents to a stranger’s server. PDFShell merges and organises PDFs entirely in your browser: drop in two or more files — contracts, scans, receipts, a cover letter and a CV — and they’re stitched into one clean document on your own device. Drag the page thumbnails into any order, rotate or duplicate a page, and delete the ones you don’t need, so “merge” doubles as a full page organiser. Because everything runs locally with WebAssembly, it’s fast even on a slow or metered connection, with no sign-up, no watermark and no page limit. When the order looks right, download a single combined PDF — your files never leave your device.',
     steps: [
       'Drop in one or more PDF files.',
       'Drag the page thumbnails to reorder them, or remove the ones you don’t need.',
@@ -47,7 +47,7 @@ export const TOOL_CONTENT: Record<string, ToolContent> = {
   '/split': {
     heading: 'Split a PDF or extract pages',
     intro:
-      'Split a PDF into separate files or pull out specific pages and page ranges — in your browser, with nothing uploaded. Great for extracting a chapter, a single form, or splitting a scan into parts.',
+      'Splitting a PDF lets you pull exactly the pages you need out of a larger file — a single chapter from a textbook, one form from a bundle, or a signed page from a contract — without sending the whole document anywhere. PDFShell does it entirely in your browser: drop in your PDF, choose the pages or ranges to extract (for example 1–3, 5, and 8–10), and download them as a new file. You can also split one PDF into several separate documents in a single pass. There’s no upload, no watermark and no sign-up, and because the work happens on your device it stays quick even on a weak connection.',
     steps: [
       'Drop in the PDF you want to split.',
       'Choose the pages or ranges to extract (e.g. 1–3, 5, 8–10).',
@@ -63,7 +63,7 @@ export const TOOL_CONTENT: Record<string, ToolContent> = {
   '/compress': {
     heading: 'Compress PDF to reduce file size',
     intro:
-      'Shrink a PDF so it’s easy to email or upload. PDFShell does a lossless re-optimise in your browser, and offers stronger image-flattening compression for scan-heavy files.',
+      'Email and chat apps often reject PDFs over 25 MB, and scanned documents are the worst offenders. PDFShell shrinks a PDF so it’s small enough to send — without wrecking the quality. Lossless mode re-optimises the file’s structure in your browser and keeps text and vectors perfectly crisp; the stronger “flatten” option re-encodes scanned pages as compressed images for a much smaller file, ideal for photographed or scanned documents. You get a before-and-after preview of the first page and the exact size saved, and PDFShell never hands back a file larger than the one you started with. Lossless compression runs entirely on your device with nothing uploaded, so even sensitive files stay private.',
     steps: [
       'Drop in the PDF you want to shrink.',
       'Pick lossless (keeps text sharp) or a stronger preset for scanned/image PDFs.',
@@ -79,7 +79,7 @@ export const TOOL_CONTENT: Record<string, ToolContent> = {
   '/edit': {
     heading: 'Edit PDF text online, free',
     intro:
-      'Edit the existing text in a PDF and add new text anywhere on the page, matching the document’s own fonts. PDFShell lifts the page so your edits sit cleanly in place — no ghosted original text behind them.',
+      'You shouldn’t need expensive desktop software just to fix a typo or fill in a PDF. PDFShell lets you edit the existing text in a PDF in place — click a line and retype it — as well as add new text anywhere on the page, matching the document’s own fonts. Instead of leaving the old text faintly showing through behind your change, it lifts the page so edits sit cleanly with no ghosting. You can also add a signature: draw it or upload an image, then drag and resize it onto the page. Scanned PDFs are handled too, read with on-device OCR so you can edit the recognised text. Everything runs in your browser, with no watermark and nothing uploaded.',
     steps: [
       'Open your PDF in the editor.',
       'Click any line to edit it in place, or click an empty area to add new text.',
@@ -111,10 +111,26 @@ export const TOOL_CONTENT: Record<string, ToolContent> = {
       FREE_FAQ,
     ],
   },
+  '/flows': {
+    heading: 'One-click PDF workflows',
+    intro:
+      'Some jobs take more than one tool. A photographed contract usually needs scanning, then cleaning up, then making searchable. PDFShell workflows chain those steps into a single guided flow: start one and your file is handed from tool to tool in memory — no re-uploading, no re-selecting, and nothing leaves your device. Built-in flows include “Scan & clean up” (photograph pages, then compress), “Scan to searchable PDF” (photograph pages, then OCR), and “Combine & compress” (merge several PDFs, then shrink the result). Each step is a normal tool, so you stay in control and can stop or branch off at any point.',
+    steps: [
+      'Pick a workflow from the cards above.',
+      'Complete the first tool — take photos, drop files, or set options.',
+      'Press “Continue” to hand the result to the next step, and download the finished PDF.',
+    ],
+    faqs: [
+      { q: 'Do my files get uploaded between steps?', a: 'No — the result of each step is passed to the next entirely in your browser’s memory. Nothing is uploaded or stored.' },
+      { q: 'Can I stop partway through a workflow?', a: 'Yes — every step is a normal tool. You can download at any step, exit the workflow, or carry the file into a different tool.' },
+      PRIVACY_FAQ,
+      FREE_FAQ,
+    ],
+  },
   '/ocr': {
     heading: 'OCR a scanned PDF to searchable text',
     intro:
-      'Turn a scanned PDF or image into selectable, searchable text with OCR that runs entirely in your browser — in 100+ languages, with nothing uploaded.',
+      'A scanned document is just a picture of text — you can’t search it, select it or copy from it. OCR (optical character recognition) turns that image back into real, selectable text. PDFShell runs OCR entirely in your browser using Tesseract, in over 100 languages including many used across Africa, so even sensitive scans never leave your device. Drop in a scanned PDF or a photo of a page, pick the language, and PDFShell recognises the text on your device — then you can copy it, export a .txt file, or download a searchable PDF with an invisible text layer behind the original image. It’s free, works offline once the language is downloaded, and adds no watermark.',
     steps: [
       'Drop in a scanned PDF or image.',
       'Pick the language(s) and run OCR — it processes on your device.',
@@ -127,10 +143,26 @@ export const TOOL_CONTENT: Record<string, ToolContent> = {
       FREE_FAQ,
     ],
   },
+  '/convert': {
+    heading: 'Convert PDF to and from Word, Excel, PowerPoint, images and text',
+    intro:
+      'PDFShell converts PDFs into the formats you actually work in — Word (DOCX), Excel (XLSX), PowerPoint (PPTX), plain text and images — and turns Word documents and images back into PDF. The document conversions (PDF to Word, Excel and PowerPoint) run on the self-hosted LibreOffice service for high-fidelity layout; the rest — PDF to text, PDF to images, images to PDF and Word to PDF — run entirely in your browser, so nothing is uploaded and they work offline. Either way there is no watermark, no sign-up and no page limit. Pick a conversion below to get started.',
+    steps: [
+      'Choose the conversion you need from the cards above.',
+      'Drop in your file — a PDF, a Word document, or images.',
+      'Download the converted file, ready to edit in Office, Google Docs or your image viewer.',
+    ],
+    faqs: [
+      { q: 'Which conversions run on my device and which use the server?', a: 'PDF to text, PDF to images, images to PDF and Word to PDF run fully in your browser (private and offline). PDF to Word, Excel and PowerPoint use the self-hosted LibreOffice service because that quality of reconstruction needs desktop-class tooling.' },
+      { q: 'Will the formatting be preserved?', a: 'Yes — the Office conversions reconstruct paragraphs, headings, tables and fonts so the result closely matches the original, rather than dumping raw text.' },
+      { q: 'Are the converted numbers and text editable?', a: 'Yes — you get real editable documents: numeric cells in Excel, editable paragraphs in Word, real slides in PowerPoint — not screenshots.' },
+      FREE_FAQ,
+    ],
+  },
   '/convert/pdf-to-word': {
     heading: 'Convert PDF to Word (DOCX)',
     intro:
-      'Turn a PDF into an editable Microsoft Word document with the layout, headings and tables preserved — so you can keep working on it in Word or Google Docs.',
+      'Re-typing a PDF into Word wastes hours and introduces mistakes. PDFShell converts a PDF into an editable Microsoft Word (.docx) document with the layout, headings, paragraphs and tables reconstructed — not just the raw text dumped onto a page — so you can keep working on it in Word, Google Docs or LibreOffice. The conversion runs on the self-hosted LibreOffice service because faithfully rebuilding a document’s structure needs desktop-class tooling; your file is processed in memory and deleted straight after, never shared or kept. There’s no watermark and no sign-up, and the result is a genuine editable document you can change, comment on and re-export.',
     steps: ['Drop in your PDF.', 'Click convert to DOCX.', 'Open the downloaded Word file and edit away.'],
     faqs: [
       { q: 'Does the Word file keep the original layout?', a: 'Yes — PDFShell reconstructs paragraphs, headings and tables so the DOCX closely matches the PDF.' },
@@ -142,7 +174,7 @@ export const TOOL_CONTENT: Record<string, ToolContent> = {
   '/convert/pdf-to-excel': {
     heading: 'Convert PDF to Excel (XLSX)',
     intro:
-      'Extract tables and reports from a PDF into a styled, formula-ready Excel spreadsheet — numbers stay real numbers, not pictures, so you can sort, sum and chart them.',
+      'Copy-pasting a PDF table into Excel usually destroys the layout and turns figures into useless text. PDFShell converts a PDF into a proper Excel (.xlsx) spreadsheet where the numbers stay real, computable numbers — so you can sort, sum, filter and chart them immediately. Section headers, fonts and ruled tables are reconstructed so each sheet reads like the original report or bank statement, and multi-page documents keep their structure. The conversion runs on the self-hosted LibreOffice service (your file is processed in memory and deleted right after), with no watermark and no sign-up. The result is a working spreadsheet, not a screenshot of one.',
     steps: ['Drop in your PDF.', 'Click convert to XLSX.', 'Open the spreadsheet — sections, tables and numbers are preserved.'],
     faqs: [
       { q: 'Will the numbers be editable in Excel?', a: 'Yes — PDFShell writes real numeric cells (with %/decimal formats), so the sheet is computable, not just a visual copy.' },
