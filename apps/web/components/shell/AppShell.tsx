@@ -7,6 +7,7 @@ import { TopBar } from '@/components/shell/TopBar';
 import { MobileTabBar } from '@/components/shell/MobileTabBar';
 import { CommandPalette } from '@/components/shell/CommandPalette';
 import { FlowBar } from '@/components/flow/FlowBar';
+import { Breadcrumbs } from '@/components/seo/Breadcrumbs';
 
 /**
  * The persistent application chrome: a fixed sidebar on desktop, a slide-in
@@ -14,7 +15,7 @@ import { FlowBar } from '@/components/flow/FlowBar';
  * pane. This is what turns the six PDF tools into one cohesive product, the way
  * the reference frames an inbox.
  */
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({ children, footer }: { children: React.ReactNode; footer?: React.ReactNode }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
 
@@ -63,12 +64,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar onMenu={() => setDrawerOpen(true)} />
-        <main className="flex-1 px-4 py-6 pb-24 sm:px-6 lg:px-8 md:pb-6">
+        <main id="main" className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
           <div className="mx-auto w-full max-w-5xl">
+            <Breadcrumbs />
             <FlowBar />
             {children}
           </div>
         </main>
+        {footer}
       </div>
 
       <MobileTabBar onOpenPalette={() => setPaletteOpen(true)} />

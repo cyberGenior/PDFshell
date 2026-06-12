@@ -1,4 +1,5 @@
 import { getToolContent } from '@/lib/toolContent';
+import { RelatedLinks } from '@/components/seo/RelatedLinks';
 
 /**
  * Renders the per-tool intro + how-to + FAQ below the tool widget, and emits
@@ -42,6 +43,8 @@ export function ToolSeoContent({ path }: { path: string }) {
           </div>
         ))}
       </dl>
+
+      <RelatedLinks path={path} />
     </section>
   );
 }

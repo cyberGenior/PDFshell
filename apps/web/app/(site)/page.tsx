@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Search, ArrowRight, ShieldCheck, Star, History, Workflow } from 'lucide-react';
+import { Search, ArrowRight, ShieldCheck, Star, History, Workflow, BookOpen } from 'lucide-react';
 import { TOOLS, getTool } from '@/lib/tools';
 import { useLocalStats } from '@/lib/stats';
 import { UniversalDrop } from '@/components/home/UniversalDrop';
@@ -110,22 +110,40 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* One-click workflows entry point */}
-      <Link
-        href="/flows"
-        className="card-shadow group flex items-center gap-4 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 transition-colors hover:border-[var(--ring)]"
-      >
-        <IconTile size="lg" active>
-          <Workflow />
-        </IconTile>
-        <div className="min-w-0 flex-1">
-          <h2 className="font-semibold tracking-tight">One-click workflows</h2>
-          <p className="mt-0.5 text-sm text-[var(--muted-foreground)]">
-            Multi-step tasks done in one guided flow — scan &amp; clean up, scan to searchable text, combine &amp; compress.
-          </p>
-        </div>
-        <ArrowRight className="size-4 shrink-0 -translate-x-1 text-[var(--muted-foreground)] opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100" />
-      </Link>
+      {/* Workflows + Guides entry points */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Link
+          href="/flows"
+          className="card-shadow group flex items-center gap-4 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 transition-colors hover:border-[var(--ring)]"
+        >
+          <IconTile size="lg" active>
+            <Workflow />
+          </IconTile>
+          <div className="min-w-0 flex-1">
+            <h2 className="font-semibold tracking-tight">One-click workflows</h2>
+            <p className="mt-0.5 text-sm text-[var(--muted-foreground)]">
+              Multi-step tasks in one guided flow — scan &amp; clean up, scan to text, combine &amp; compress.
+            </p>
+          </div>
+          <ArrowRight className="size-4 shrink-0 -translate-x-1 text-[var(--muted-foreground)] opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100" />
+        </Link>
+
+        <Link
+          href="/guides"
+          className="card-shadow group flex items-center gap-4 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 transition-colors hover:border-[var(--ring)]"
+        >
+          <IconTile size="lg" active>
+            <BookOpen />
+          </IconTile>
+          <div className="min-w-0 flex-1">
+            <h2 className="font-semibold tracking-tight">PDF guides &amp; how-tos</h2>
+            <p className="mt-0.5 text-sm text-[var(--muted-foreground)]">
+              Step-by-step: merge without uploading, PDF to Excel, OCR a scan, compress for email and more.
+            </p>
+          </div>
+          <ArrowRight className="size-4 shrink-0 -translate-x-1 text-[var(--muted-foreground)] opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100" />
+        </Link>
+      </div>
 
       {/* Tools */}
       <section className="flex flex-col gap-5">
