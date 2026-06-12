@@ -94,6 +94,14 @@ export const PAGES: Record<string, Seo> = {
     title: 'Protect PDF with Password — or Unlock',
     description: 'Add AES-256 password protection to a PDF, or remove a password you know. Free, no watermark.',
   },
+  '/about': {
+    title: 'About PDFShell',
+    description: 'PDFShell is a free, open-source, privacy-first PDF toolkit that runs entirely in your browser — built for low-bandwidth connections.',
+  },
+  '/privacy': {
+    title: 'Privacy Policy',
+    description: 'How PDFShell handles your data: files are processed on your device and never uploaded. What analytics and advertising cookies are used, and how to opt out.',
+  },
 };
 
 /**

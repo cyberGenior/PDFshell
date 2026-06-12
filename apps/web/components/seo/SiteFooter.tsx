@@ -63,6 +63,8 @@ export function SiteFooter() {
             <li><Link href="/" className="text-[var(--muted-foreground)] hover:text-[var(--foreground)]">Home</Link></li>
             <li><Link href="/flows" className="text-[var(--muted-foreground)] hover:text-[var(--foreground)]">One-click workflows</Link></li>
             <li><Link href="/guides" className="text-[var(--muted-foreground)] hover:text-[var(--foreground)]">All guides</Link></li>
+            <li><Link href="/about" className="text-[var(--muted-foreground)] hover:text-[var(--foreground)]">About</Link></li>
+            <li><Link href="/privacy" className="text-[var(--muted-foreground)] hover:text-[var(--foreground)]">Privacy policy</Link></li>
             <li>
               <a href="https://github.com/cyberGenior/PDFshell" target="_blank" rel="noreferrer" className="text-[var(--muted-foreground)] hover:text-[var(--foreground)]">
                 Open source
