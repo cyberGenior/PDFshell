@@ -162,6 +162,21 @@
   }
 }
 
+/* Lightweight CSS animations that replace framer-motion on hot paths (route
+   transitions, the landing tool grid) to keep JS off the main thread on low-end
+   devices. Disabled automatically by the reduced-motion rule below. */
+@keyframes route-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+.route-enter { animation: route-enter 0.25s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+.rise-in { animation: rise-in 0.3s ease-out both; }
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.001ms !important;

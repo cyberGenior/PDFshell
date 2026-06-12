@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
 import { Search, ArrowRight, ShieldCheck, Star, History, Workflow, BookOpen } from 'lucide-react';
 import { TOOLS, getTool } from '@/lib/tools';
 import { useLocalStats } from '@/lib/stats';
@@ -164,12 +163,9 @@ export default function HomePage() {
           {tools.map((tool, i) => {
             const Icon = tool.icon;
             const inner = (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: Math.min(i * 0.04, 0.3) }}
-                whileHover={{ y: -3 }}
-                className="card-shadow group h-full rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 transition-colors hover:border-[var(--ring)]"
+              <div
+                style={{ animationDelay: `${Math.min(i * 0.04, 0.3)}s` }}
+                className="rise-in card-shadow group h-full rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 transition-all hover:-translate-y-[3px] hover:border-[var(--ring)]"
               >
                 <div className="mb-4 flex items-center justify-between">
                   <IconTile size="lg" active={tool.ready}>
@@ -185,7 +181,7 @@ export default function HomePage() {
                 </div>
                 <h3 className="font-semibold tracking-tight">{tool.name}</h3>
                 <p className="mt-1 text-sm leading-relaxed text-[var(--muted-foreground)]">{tool.description}</p>
-              </motion.div>
+              </div>
             );
             return tool.ready ? (
               <Link key={tool.slug} href={`/${tool.slug}`} className="block">{inner}</Link>

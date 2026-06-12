@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { cropPages, type CropMargins } from '@pdfshell/pdf-core';
+import type { CropMargins } from '@pdfshell/pdf-core';
 import { loadPdf, renderThumbnail } from '@/lib/pdf/render';
 import { usePendingDoc } from '@/lib/handoff';
 import { ToolShell } from '@/components/pdf/ToolShell';
@@ -59,6 +59,7 @@ export default function CropPage() {
     setError(null);
     track('tool_used', 'crop');
     try {
+      const { cropPages } = await import('@pdfshell/pdf-core');
       const bytes = await cropPages(new Uint8Array(await file.arrayBuffer()), margins);
       const name = file.name.replace(/\.pdf$/i, '') + '_cropped.pdf';
       downloadBlob(bytes, name);

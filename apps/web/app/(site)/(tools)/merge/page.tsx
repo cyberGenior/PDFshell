@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { assemblePages, type PagePick } from '@pdfshell/pdf-core';
+import type { PagePick } from '@pdfshell/pdf-core';
 import { loadPdf, renderThumbnail } from '@/lib/pdf/render';
 import { usePendingDocs } from '@/lib/handoff';
 import { ToolShell } from '@/components/pdf/ToolShell';
@@ -123,6 +123,7 @@ export default function MergePage() {
         rotate: it.rotation || undefined,
       }));
       const name = files.length === 1 ? files[0]!.file.name.replace(/\.pdf$/i, '') + '_organised.pdf' : 'merged.pdf';
+      const { assemblePages } = await import('@pdfshell/pdf-core');
       const bytes = await assemblePages(sources, picks);
       downloadBlob(bytes, name);
       setResult({ bytes, name });
@@ -215,6 +216,7 @@ export default function MergePage() {
                   <img
                     src={item.thumb}
                     alt={`${item.fileName} page ${item.page}`}
+                    loading="lazy"
                     style={{ transform: `rotate(${item.rotation}deg)${item.rotation % 180 ? ' scale(0.72)' : ''}` }}
                     className="pointer-events-none w-full transition-transform"
                   />

@@ -1,21 +1,9 @@
-'use client';
-
-import { motion } from 'framer-motion';
-
 /**
- * App Router re-mounts template.tsx on every navigation, so this gives each
- * route a subtle enter animation without any manual orchestration. Kept gentle
- * (and disabled under prefers-reduced-motion via globals.css) so it feels
- * responsive, not sluggish, on low-end devices.
+ * App Router re-mounts template.tsx on every navigation, giving each route a
+ * subtle enter animation. Done with a CSS class (see .route-enter in globals.css)
+ * instead of framer-motion, so this hot path ships zero JS and stays smooth on
+ * low-end devices. Respects prefers-reduced-motion via globals.css.
  */
 export default function Template({ children }: { children: React.ReactNode }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-    >
-      {children}
-    </motion.div>
-  );
+  return <div className="route-enter">{children}</div>;
 }

@@ -33,6 +33,13 @@ export function AppShell({ children, footer }: { children: React.ReactNode; foot
 
   return (
     <div className="flex min-h-dvh">
+      {/* Keyboard users skip the sidebar/topbar straight to content. */}
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:rounded-md focus:bg-[var(--background)] focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:shadow focus:ring-2 focus:ring-[var(--ring)]"
+      >
+        Skip to content
+      </a>
       {/* Desktop sidebar */}
       <aside className="sticky top-0 hidden h-dvh w-[272px] shrink-0 border-r border-[var(--border)] bg-[var(--surface)] md:block">
         <Sidebar />

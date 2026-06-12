@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { addWatermark } from '@pdfshell/pdf-core';
 import { loadPdf, renderThumbnail } from '@/lib/pdf/render';
 import { usePendingDoc } from '@/lib/handoff';
 import { usePersistedState } from '@/lib/usePersistedState';
@@ -60,6 +59,7 @@ export default function WatermarkPage() {
     setError(null);
     track('tool_used', 'watermark');
     try {
+      const { addWatermark } = await import('@pdfshell/pdf-core');
       const bytes = await addWatermark(new Uint8Array(await file.arrayBuffer()), text.trim(), {
         opacity: opacity / 100,
         angle,

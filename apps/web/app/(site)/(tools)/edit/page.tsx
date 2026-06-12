@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { extractPage, applyEdits, type PageEdit, type EditLine, type FontFamily } from '@/lib/pdfEdit';
-import { stampImages, type ImageStamp } from '@pdfshell/pdf-core';
+import type { ImageStamp } from '@pdfshell/pdf-core';
 import { ToolShell } from '@/components/pdf/ToolShell';
 import { DropZone } from '@/components/pdf/DropZone';
 import { SignaturePad } from '@/components/pdf/SignaturePad';
@@ -168,6 +168,7 @@ export default function EditPage() {
         const stamps: ImageStamp[] = signatures.map((s) => ({
           png: s.png, pageIndex: s.page, x: s.left, top: s.top, width: s.width, height: s.width / s.aspect,
         }));
+        const { stampImages } = await import('@pdfshell/pdf-core');
         out = await stampImages(out, stamps);
       }
       downloadBlob(out, 'edited.pdf');

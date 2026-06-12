@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { imagesToPdf, type ImageInput } from '@pdfshell/pdf-core';
+import type { ImageInput } from '@pdfshell/pdf-core';
 import { usePendingDocs } from '@/lib/handoff';
 import { usePersistedState } from '@/lib/usePersistedState';
 import { ToolShell } from '@/components/pdf/ToolShell';
@@ -161,6 +161,7 @@ export default function ScanPage() {
         const canvas = await renderShot(shot, enhance, 2200);
         images.push({ bytes: await canvasToJpeg(canvas, 0.82), format: 'jpg' });
       }
+      const { imagesToPdf } = await import('@pdfshell/pdf-core');
       const bytes = await imagesToPdf(images);
       const name = 'scan.pdf';
       downloadBlob(bytes, name);
@@ -284,6 +285,7 @@ export default function ScanPage() {
                   <img
                     src={previews[shot.id]}
                     alt={`Scanned page ${i + 1}`}
+                    loading="lazy"
                     className="pointer-events-none aspect-[3/4] w-full rounded-md border border-[var(--border)] bg-white object-cover"
                   />
                 ) : (

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { rotatePages } from '@pdfshell/pdf-core';
 import { loadPdf, renderThumbnail } from '@/lib/pdf/render';
 import { usePendingDoc } from '@/lib/handoff';
 import { ToolShell } from '@/components/pdf/ToolShell';
@@ -79,6 +78,7 @@ export default function RotatePage() {
     track('tool_used', 'rotate');
     try {
       const effective = Object.fromEntries(Object.entries(deltas).filter(([, d]) => d !== 0));
+      const { rotatePages } = await import('@pdfshell/pdf-core');
       const bytes = await rotatePages(new Uint8Array(await file.arrayBuffer()), effective);
       const name = file.name.replace(/\.pdf$/i, '') + '_rotated.pdf';
       downloadBlob(bytes, name);

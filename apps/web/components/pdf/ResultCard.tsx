@@ -124,6 +124,7 @@ export function ResultCard({ bytes, name, tool, originalSize, mimeType = 'applic
           <img
             src={thumb}
             alt={`First page of ${name}`}
+            loading="lazy"
             className="h-16 w-12 shrink-0 rounded-md border border-[var(--border)] bg-white object-cover shadow-sm"
           />
         ) : (
