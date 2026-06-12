@@ -1,11 +1,23 @@
 name: Health check
 
+# Uptime monitor + alerting. Runs on a schedule and FAILS (red ✗) if the site is
+# unhealthy — GitHub then emails the repo owner, which is your free alert. Each
+# endpoint is retried a few times so a single transient blip (or a request that
+# lands mid cold-start) doesn't page you. The keep-alive.yml workflow is what tries
+# to PREVENT the cold start; this one tells you if something is actually down.
+#
+# Override the target with an Actions variable HEALTHCHECK_URL if your domain changes.
+
 on:
   schedule:
-    - cron: '*/15 * * * *'   # every 15 min
-  workflow_dispatch:          # lets you run it manually
+    - cron: '*/10 * * * *'    # every 10 min
+  workflow_dispatch:           # run manually any time
   push:
-    branches: [main]          # verify right after a deploy
+    branches: [main]           # verify right after a deploy
+
+concurrency:
+  group: health-check
+  cancel-in-progress: true
 
 jobs:
   check:
@@ -15,12 +27,21 @@ jobs:
         run: |
           URL="${{ vars.HEALTHCHECK_URL || 'https://pdfshell.onrender.com' }}"
           fail=0
+          # Retry up to 4 times (8s apart) so a transient timeout or a cold-start
+          # wake-up doesn't trip a false alarm; only a sustained failure alerts.
           check () {
-            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 90 "$1" || echo 000)
-            echo "$1 -> $code"
-            [ "$code" = "200" ] || fail=1
+            local path="$1" code=000
+            for i in 1 2 3 4; do
+              code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 90 "${URL}${path}?hc=$(date +%s)-${RANDOM}" || echo 000)
+              [ "$code" = "200" ] && { echo "${URL}${path} -> 200 (attempt $i)"; return; }
+              echo "${URL}${path} -> $code (attempt $i, retrying)"
+              sleep 8
+            done
+            echo "::error::${URL}${path} unhealthy after 4 attempts (last: $code)"
+            fail=1
           }
-          check "$URL/healthz"
-          check "$URL/"
-          check "$URL/sitemap.xml"
-          if [ "$fail" = "1" ]; then echo "::error::site unhealthy"; exit 1; fi
+          check "/healthz"
+          check "/"
+          check "/sitemap.xml"
+          if [ "$fail" = "1" ]; then exit 1; fi
+          echo "All endpoints healthy."

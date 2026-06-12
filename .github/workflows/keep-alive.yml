@@ -1,39 +1,50 @@
 name: Keep Render awake
 
 # Render's free tier spins a service down after ~15 min with no traffic, so the
-# next visitor waits ~30–60s for a cold start. This pings the app on a schedule
-# to keep it warm. Set a repo variable KEEPALIVE_URL to your health URL, e.g.
-# https://pdfshell.onrender.com/healthz  (Settings → Secrets and variables →
-# Actions → Variables). If unset, the job no-ops.
+# next visitor waits ~30-60s for a cold start. This pings /healthz to keep it warm.
 #
-# Note: GitHub's scheduled runs are best-effort (can be delayed or skipped under
-# load), so the occasional cold start may still slip through. The only guaranteed
-# fix is a paid Render plan (no spin-down) or a dedicated uptime service
-# (UptimeRobot / cron-job.org) hitting /healthz every 5–10 min.
+# Why the long in-run loop (and not a single ping): GitHub's *scheduled* runs are
+# best-effort and are frequently delayed — sometimes 10-20 min under load. A single
+# ping per run would leave gaps wide enough for Render to sleep. Instead, each run
+# keeps pinging every 90s for ~20 minutes, so ONE run on its own covers a full idle
+# window even if the next scheduled run is late or skipped. `cancel-in-progress`
+# means a fresh run simply supersedes the previous one, so they never pile up.
+#
+# Cache-buster: a unique ?ka= param per ping so Cloudflare (in front of Render)
+# can't answer from cache without the request reaching the origin — a cached reply
+# wouldn't wake the server.
+#
+# This is a FREE best-effort layer (public-repo Actions minutes are unlimited).
+# For GUARANTEED coverage, add an external monitor (cron-job.org / UptimeRobot)
+# hitting /healthz every 1-5 min, or use a paid Render plan (no spin-down at all).
+# GitHub also disables scheduled workflows after 60 days with no repo activity.
 
 on:
   schedule:
-    # Every 5 min (GitHub's minimum). Render spins down after ~15 min idle and
-    # GitHub often delays scheduled runs, so 5-min cadence maximises the odds of
-    # landing a ping inside each window.
-    - cron: '*/5 * * * *'
+    - cron: '*/10 * * * *'   # every 10 min (best-effort; the 20-min loop bridges drift)
   workflow_dispatch:
+
+concurrency:
+  group: keep-alive
+  cancel-in-progress: true
 
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping /healthz
+      - name: Ping /healthz for ~20 minutes
         run: |
-          URL="${{ vars.KEEPALIVE_URL }}"
-          if [ -z "$URL" ]; then
-            echo "KEEPALIVE_URL not set — skipping. Add it as a repo Actions variable to enable."
-            exit 0
-          fi
-          for i in 1 2 3; do
-            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 75 "$URL" || true)
-            echo "attempt $i → HTTP $code"
-            [ "$code" = "200" ] && exit 0
-            sleep 20
+          BASE="${{ vars.KEEPALIVE_URL || 'https://pdfshell.onrender.com/healthz' }}"
+          echo "Keep-alive target: $BASE"
+          end=$(( $(date +%s) + 20*60 ))
+          ok=0; total=0
+          while [ "$(date +%s)" -lt "$end" ]; do
+            total=$((total+1))
+            url="${BASE}?ka=$(date +%s)-${RANDOM}"
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 80 "$url" || echo 000)
+            echo "$(date -u +%H:%M:%S)  ping #$total -> HTTP $code"
+            [ "$code" = "200" ] && ok=$((ok+1))
+            sleep 90
           done
-          echo "::warning::$URL did not return 200 after 3 attempts"
+          echo "Done: $ok/$total pings returned 200."
+          if [ "$ok" = "0" ]; then echo "::warning::no successful pings — check the service and the health-check workflow"; fi
