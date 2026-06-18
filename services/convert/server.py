@@ -94,7 +94,7 @@ MIME = {
 CORS = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
-    "Access-Control-Allow-Headers": "content-type, x-source-ext, x-password",
+    "Access-Control-Allow-Headers": "content-type, x-source-ext, x-password, x-owner-password, x-permissions",
 }
 
 
@@ -644,22 +644,45 @@ class WrongPassword(Exception):
     """The supplied password does not open this PDF."""
 
 
-def protect_pdf(body: bytes, password: str) -> bytes:
-    """Encrypt a PDF with AES-256 (user + owner password)."""
+def _perm_mask(allowed) -> int:
+    """Build a PDF permission bitmask from a set of allowed actions. Screen-reader
+    accessibility is always permitted. Note these flags are advisory — they're
+    honoured by compliant viewers, not enforced cryptographically."""
+    import fitz
+
+    mask = int(fitz.PDF_PERM_ACCESSIBILITY)
+    if "print" in allowed:
+        mask |= int(fitz.PDF_PERM_PRINT) | int(fitz.PDF_PERM_PRINT_HQ)
+    if "copy" in allowed:
+        mask |= int(fitz.PDF_PERM_COPY)
+    if "modify" in allowed:
+        mask |= int(fitz.PDF_PERM_MODIFY) | int(fitz.PDF_PERM_ASSEMBLE)
+    if "annotate" in allowed:
+        mask |= int(fitz.PDF_PERM_ANNOTATE) | int(fitz.PDF_PERM_FORM)
+    return mask
+
+
+_ALL_PERMS = {"print", "copy", "modify", "annotate"}
+
+
+def protect_pdf(body: bytes, user_pw: str, owner_pw=None, allowed=None) -> bytes:
+    """Encrypt a PDF with AES-256.
+
+    user_pw  — required to OPEN the document.
+    owner_pw — required to CHANGE permissions/print settings; defaults to the
+               user password. For permission restrictions to actually bite, the
+               owner password must differ from the user password (otherwise the
+               opener is treated as the owner and gets full rights).
+    allowed  — set of permitted actions; None means "all allowed" (back-compat)."""
     import fitz
 
     doc = fitz.open(stream=body, filetype="pdf")
     try:
-        perm = int(
-            fitz.PDF_PERM_ACCESSIBILITY
-            | fitz.PDF_PERM_PRINT
-            | fitz.PDF_PERM_COPY
-            | fitz.PDF_PERM_ANNOTATE
-        )
+        perm = _perm_mask(allowed if allowed is not None else _ALL_PERMS)
         return doc.tobytes(
             encryption=fitz.PDF_ENCRYPT_AES_256,
-            owner_pw=password,
-            user_pw=password,
+            owner_pw=(owner_pw or user_pw),
+            user_pw=user_pw,
             permissions=perm,
         )
     finally:
@@ -1123,7 +1146,16 @@ class Handler(BaseHTTPRequestHandler):
                 if parsed.path == "/protect":
                     if len(password) < 4:
                         return self._send(400, b"Password too short")
-                    out = protect_pdf(body, password)
+                    owner = unquote(self.headers.get("x-owner-password", "") or "")
+                    # Absent header → all permissions (back-compat). Present →
+                    # only the listed actions are allowed.
+                    perms_header = self.headers.get("x-permissions", None)
+                    allowed = (
+                        {p.strip().lower() for p in perms_header.split(",") if p.strip()}
+                        if perms_header is not None
+                        else None
+                    )
+                    out = protect_pdf(body, password, owner_pw=(owner or None), allowed=allowed)
                     return self._send(200, out, "application/pdf")
 
                 if parsed.path == "/unlock":

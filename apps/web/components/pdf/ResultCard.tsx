@@ -12,7 +12,9 @@ import { useActiveFlow, advanceFlow, exitFlow } from '@/lib/flows';
 import { getTool } from '@/lib/tools';
 import { SendToTools } from '@/components/pdf/SendToTools';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { downloadBlob, formatBytes } from '@/lib/utils';
+import { toast } from '@/lib/useToast';
 import { track } from '@/lib/track';
 
 interface ResultCardProps {
@@ -33,6 +35,11 @@ interface ResultCardProps {
  */
 export function ResultCard({ bytes, name, tool, originalSize, mimeType = 'application/pdf' }: ResultCardProps) {
   const [thumb, setThumb] = useState<string | null>(null);
+  // 'loading' while we render the PDF page-1 preview; 'idle' once it resolves or
+  // fails (or for non-PDF output, where there's no preview to render).
+  const [thumbState, setThumbState] = useState<'loading' | 'idle'>(
+    mimeType === 'application/pdf' ? 'loading' : 'idle',
+  );
   const [canShare, setCanShare] = useState(false);
   const [shared, setShared] = useState(false);
   const [kept, setKept] = useState(false);
@@ -69,6 +76,8 @@ export function ResultCard({ bytes, name, tool, originalSize, mimeType = 'applic
         }
       } catch {
         /* thumbnail is decorative — the card works without it */
+      } finally {
+        if (!cancelled) setThumbState('idle');
       }
     })();
     return () => {
@@ -80,6 +89,11 @@ export function ResultCard({ bytes, name, tool, originalSize, mimeType = 'applic
     const file = new File([bytes as BlobPart], name, { type: mimeType });
     setCanShare(typeof navigator !== 'undefined' && !!navigator.canShare?.({ files: [file] }));
   }, [bytes, name, mimeType]);
+
+  function download() {
+    downloadBlob(bytes, name, mimeType);
+    toast.success('Saved to your device.');
+  }
 
   async function share() {
     const file = new File([bytes as BlobPart], name, { type: mimeType });
@@ -96,9 +110,10 @@ export function ResultCard({ bytes, name, tool, originalSize, mimeType = 'applic
     try {
       await keepOutput({ name, bytes, tool, mime: mimeType });
       setKept(true);
+      toast.success('Kept on this device for 7 days.');
       track('tool_used', `keep:${tool}`);
     } catch {
-      /* storage blocked (private mode / quota) — nothing to recover */
+      toast.error('Couldn’t keep the file (private mode or storage full).');
     }
   }
 
@@ -119,7 +134,9 @@ export function ResultCard({ bytes, name, tool, originalSize, mimeType = 'applic
       className="flex flex-col gap-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4"
     >
       <div className="flex items-center gap-3">
-        {thumb ? (
+        {thumbState === 'loading' ? (
+          <Skeleton className="h-16 w-12 shrink-0" />
+        ) : thumb ? (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
             src={thumb}
@@ -150,7 +167,7 @@ export function ResultCard({ bytes, name, tool, originalSize, mimeType = 'applic
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <Button size="sm" onClick={() => downloadBlob(bytes, name, mimeType)}>
+        <Button size="sm" onClick={download}>
           <Download /> Download
         </Button>
         {canShare && (

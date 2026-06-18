@@ -6,6 +6,7 @@ import {
   unlockViaService,
   ServiceUnavailableError,
   WrongPasswordError,
+  type PdfPermission,
 } from '@/lib/libreoffice';
 import { usePendingDoc } from '@/lib/handoff';
 import { ToolShell } from '@/components/pdf/ToolShell';
@@ -14,16 +15,28 @@ import { ResultCard } from '@/components/pdf/ResultCard';
 import { Button } from '@/components/ui/button';
 import { ProcessingOverlay } from '@/components/ui/Loader';
 import { downloadBlob, formatBytes, cn } from '@/lib/utils';
+import { toast } from '@/lib/useToast';
 import { track } from '@/lib/track';
 import { Lock, LockOpen } from 'lucide-react';
 
 type Mode = 'protect' | 'unlock';
+
+const PERMISSIONS: { value: PdfPermission; label: string }[] = [
+  { value: 'print', label: 'Allow printing' },
+  { value: 'copy', label: 'Allow copying text' },
+  { value: 'modify', label: 'Allow editing' },
+  { value: 'annotate', label: 'Allow comments & form fill' },
+];
 
 export default function ProtectPage() {
   const [file, setFile] = useState<File | null>(null);
   const [mode, setMode] = useState<Mode>('protect');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [ownerPassword, setOwnerPassword] = useState('');
+  const [perms, setPerms] = useState<Record<PdfPermission, boolean>>({
+    print: true, copy: true, modify: true, annotate: true,
+  });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [serviceDown, setServiceDown] = useState(false);
@@ -33,6 +46,8 @@ export default function ProtectPage() {
     setFile(next);
     setPassword('');
     setConfirm('');
+    setOwnerPassword('');
+    setPerms({ print: true, copy: true, modify: true, annotate: true });
     setError(null);
     setServiceDown(false);
     setResult(null);
@@ -41,8 +56,14 @@ export default function ProtectPage() {
   usePendingDoc((f) => reset(f));
 
   const mismatched = mode === 'protect' && confirm.length > 0 && password !== confirm;
+  // Any restriction needs a distinct owner password — otherwise the opener is
+  // treated as the owner and the limits don't apply.
+  const restricted = mode === 'protect' && PERMISSIONS.some((p) => !perms[p.value]);
+  const ownerNeeded = restricted && (ownerPassword.length < 4 || ownerPassword === password);
   const ready =
-    !!file && password.length >= 4 && (mode === 'unlock' || password === confirm);
+    !!file &&
+    password.length >= 4 &&
+    (mode === 'unlock' || (password === confirm && !ownerNeeded));
 
   async function run() {
     if (!file || !ready) return;
@@ -52,19 +73,28 @@ export default function ProtectPage() {
     setResult(null);
     track('tool_used', mode);
     try {
-      const bytes =
-        mode === 'protect'
-          ? await protectViaService(file, password)
-          : await unlockViaService(file, password);
+      let bytes: Uint8Array;
+      if (mode === 'protect') {
+        const allowed = PERMISSIONS.filter((p) => perms[p.value]).map((p) => p.value);
+        bytes = await protectViaService(file, password, {
+          ownerPassword: ownerPassword || undefined,
+          // Omit when everything is allowed (server default), so the document is
+          // unrestricted exactly as before.
+          permissions: allowed.length === PERMISSIONS.length ? undefined : allowed,
+        });
+      } else {
+        bytes = await unlockViaService(file, password);
+      }
       const suffix = mode === 'protect' ? '_protected.pdf' : '_unlocked.pdf';
       const name = file.name.replace(/\.pdf$/i, '') + suffix;
       downloadBlob(bytes, name);
       setResult({ bytes, name });
+      toast.success('Saved to your device.');
       track('conversion', mode);
     } catch (err) {
       if (err instanceof ServiceUnavailableError) setServiceDown(true);
-      else if (err instanceof WrongPasswordError) setError(err.message);
-      else setError(err instanceof Error ? err.message : 'Operation failed.');
+      else if (err instanceof WrongPasswordError) { setError(err.message); toast.error(err.message); }
+      else { setError(err instanceof Error ? err.message : 'Operation failed.'); toast.error('Operation failed.'); }
     } finally {
       setBusy(false);
     }
@@ -146,6 +176,58 @@ export default function ProtectPage() {
             <p className="text-xs text-[var(--muted-foreground)]">
               The file is encrypted with AES-256. Keep the password safe — it cannot be recovered.
             </p>
+          )}
+
+          {mode === 'protect' && (
+            <fieldset className="flex flex-col gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+              <legend className="px-1 text-sm font-medium">Permissions</legend>
+              <p className="text-xs text-[var(--muted-foreground)]">
+                Choose what readers may do with the document. Unticking an option restricts it.
+              </p>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {PERMISSIONS.map((p) => (
+                  <label key={p.value} className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={perms[p.value]}
+                      onChange={(e) => { setPerms((prev) => ({ ...prev, [p.value]: e.target.checked })); setResult(null); }}
+                      className="size-4 accent-[var(--brand)]"
+                    />
+                    {p.label}
+                  </label>
+                ))}
+              </div>
+
+              {restricted && (
+                <label className="flex flex-col gap-1.5 text-sm">
+                  <span className="font-medium">Owner password (to change permissions)</span>
+                  <input
+                    type="password"
+                    value={ownerPassword}
+                    onChange={(e) => { setOwnerPassword(e.target.value); setResult(null); }}
+                    autoComplete="new-password"
+                    aria-invalid={ownerNeeded}
+                    placeholder="Must differ from the open password"
+                    className={cn(
+                      'h-10 rounded-md border bg-[var(--background)] px-3',
+                      ownerNeeded ? 'border-amber-500' : 'border-[var(--border)]',
+                    )}
+                  />
+                  {ownerNeeded && (
+                    <span className="text-xs text-amber-600 dark:text-amber-400">
+                      Set an owner password (min 4 chars) different from the open password — otherwise
+                      the restrictions won’t apply.
+                    </span>
+                  )}
+                </label>
+              )}
+
+              <p className="text-xs text-[var(--muted-foreground)]">
+                Note: PDF permissions are honoured by standards-compliant viewers (Acrobat, Preview,
+                most browsers) but are <strong>not</strong> cryptographically enforced — determined
+                tools can bypass them. For true confidentiality, rely on the open password.
+              </p>
+            </fieldset>
           )}
 
           {serviceDown && (

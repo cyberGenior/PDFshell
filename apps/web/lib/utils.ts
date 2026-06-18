@@ -6,6 +6,17 @@ export function cn(...inputs: ClassValue[]): string {
   return twMerge(clsx(inputs));
 }
 
+/** Parse a #rrggbb hex colour to 0-1 RGB (pdf-lib's format). Falls back to grey. */
+export function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const h = hex.replace('#', '');
+  if (h.length !== 6) return { r: 0.45, g: 0.45, b: 0.45 };
+  return {
+    r: parseInt(h.slice(0, 2), 16) / 255,
+    g: parseInt(h.slice(2, 4), 16) / 255,
+    b: parseInt(h.slice(4, 6), 16) / 255,
+  };
+}
+
 /** Human-readable byte size, e.g. 1536 -> "1.5 KB". */
 export function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 B';

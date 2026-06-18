@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { ServiceWorkerRegistrar } from '@/components/ServiceWorkerRegistrar';
 import { GoogleAnalytics } from '@/components/analytics/GoogleAnalytics';
 import { AdSenseScript } from '@/components/ads/AdSense';
+import { Toaster } from '@/components/ui/Toast';
 import { SITE_NAME, SITE_URL, SITE_DESCRIPTION } from '@/lib/seo';
 import { organization, website, ldGraph } from '@/lib/jsonLd';
 import './globals.css';
@@ -86,6 +87,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <GoogleAnalytics />
         <AdSenseScript />
         {children}
+        <Toaster />
       </body>
     </html>
   );

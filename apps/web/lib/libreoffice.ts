@@ -56,21 +56,37 @@ export class WrongPasswordError extends Error {
   }
 }
 
+/** Which actions a protected PDF permits (omit a key to forbid it). */
+export type PdfPermission = 'print' | 'copy' | 'modify' | 'annotate';
+
+export interface ProtectOptions {
+  /** Owner password (to change permissions). Must differ from the open password
+   *  for restrictions to take effect. */
+  ownerPassword?: string;
+  /** Allowed actions. Omit to allow everything (the historical default). */
+  permissions?: PdfPermission[];
+}
+
 async function passwordOp(
   path: 'protect' | 'unlock',
   file: File,
   password: string,
   signal?: AbortSignal,
+  opts?: ProtectOptions,
 ): Promise<Uint8Array> {
+  const headers: Record<string, string> = {
+    'content-type': 'application/octet-stream',
+    // Header (not query string) so the password never lands in URL logs.
+    'x-password': encodeURIComponent(password),
+  };
+  if (opts?.ownerPassword) headers['x-owner-password'] = encodeURIComponent(opts.ownerPassword);
+  if (opts?.permissions) headers['x-permissions'] = opts.permissions.join(',');
+
   let res: Response;
   try {
     res = await fetch(`${CONVERT_BASE}/${path}`, {
       method: 'POST',
-      headers: {
-        'content-type': 'application/octet-stream',
-        // Header (not query string) so the password never lands in URL logs.
-        'x-password': encodeURIComponent(password),
-      },
+      headers,
       body: await file.arrayBuffer(),
       signal,
     });
@@ -86,9 +102,17 @@ async function passwordOp(
   return new Uint8Array(await res.arrayBuffer());
 }
 
-/** Encrypt a PDF with AES-256 so it requires `password` to open. */
-export function protectViaService(file: File, password: string, signal?: AbortSignal) {
-  return passwordOp('protect', file, password, signal);
+/**
+ * Encrypt a PDF with AES-256 so it requires `password` to open. Optionally set a
+ * separate owner password and restrict permissions (print/copy/modify/annotate).
+ */
+export function protectViaService(
+  file: File,
+  password: string,
+  opts?: ProtectOptions,
+  signal?: AbortSignal,
+) {
+  return passwordOp('protect', file, password, signal, opts);
 }
 
 /** Remove encryption from a PDF, given its correct password. */

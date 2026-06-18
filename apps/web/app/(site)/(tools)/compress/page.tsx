@@ -15,8 +15,10 @@ import { ToolShell } from '@/components/pdf/ToolShell';
 import { DropZone } from '@/components/pdf/DropZone';
 import { ResultCard } from '@/components/pdf/ResultCard';
 import { Button } from '@/components/ui/button';
+import { OptionCard } from '@/components/ui/OptionCard';
 import { ProcessingOverlay } from '@/components/ui/Loader';
 import { downloadBlob, formatBytes } from '@/lib/utils';
+import { toast } from '@/lib/useToast';
 import { track } from '@/lib/track';
 
 type Method = 'strong' | 'flatten' | 'ondevice';
@@ -124,7 +126,10 @@ export default function CompressPage() {
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') return; // user cancelled
       if (err instanceof ServiceUnavailableError) setServiceDown(true);
-      else setError(err instanceof Error ? err.message : 'Compression failed.');
+      else {
+        setError(err instanceof Error ? err.message : 'Compression failed.');
+        toast.error('Compression failed.');
+      }
     } finally {
       abortRef.current = null;
       setBusy(false);
@@ -137,6 +142,7 @@ export default function CompressPage() {
   function download() {
     if (!result) return;
     downloadBlob(result.bytes, outName);
+    toast.success('Saved to your device.');
   }
 
   return (
@@ -186,20 +192,13 @@ export default function CompressPage() {
               <span className="text-sm font-medium">Quality</span>
               <div className="flex flex-wrap gap-2">
                 {PRESETS.map((p) => (
-                  <button
+                  <OptionCard
                     key={p.value}
-                    onClick={() => { setPreset(p.value); setResult(null); }}
-                    aria-pressed={preset === p.value}
-                    className={
-                      'rounded-xl border px-3 py-2 text-left text-sm transition-colors focus-visible:ring-2 focus-visible:ring-[var(--ring)] ' +
-                      (preset === p.value
-                        ? 'border-[var(--brand)] bg-[color-mix(in_oklch,var(--brand)_8%,transparent)]'
-                        : 'border-[var(--border)] hover:bg-[var(--surface-2)]')
-                    }
-                  >
-                    <span className="block font-medium">{p.label}</span>
-                    <span className="block text-xs text-[var(--muted-foreground)]">{p.hint}</span>
-                  </button>
+                    selected={preset === p.value}
+                    onSelect={() => { setPreset(p.value); setResult(null); }}
+                    label={p.label}
+                    description={p.hint}
+                  />
                 ))}
               </div>
             </div>
