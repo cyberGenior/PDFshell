@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Loader2, FileWarning, Check } from 'lucide-react';
+import { FileWarning, Check } from 'lucide-react';
 import { loadPdf, renderThumbnail } from '@/lib/pdf/render';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { cn } from '@/lib/utils';
 
 interface PdfPreviewProps {
@@ -71,10 +72,17 @@ export function PdfPreview({
   }, [file, maxPages]);
 
   if (state.kind === 'loading') {
+    const placeholders = Math.min(state.total || maxPages, maxPages, 12);
     return (
-      <div className="flex items-center gap-2 py-6 text-sm text-[var(--muted-foreground)]">
-        <Loader2 className="size-4 animate-spin" />
-        Rendering preview{state.total ? ` ${state.done}/${state.total}` : ''}…
+      <div className="flex flex-col gap-2">
+        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6">
+          {Array.from({ length: placeholders }).map((_, i) => (
+            <Skeleton key={i} className="aspect-[3/4] w-full rounded-lg" />
+          ))}
+        </div>
+        <p className="text-xs text-[var(--muted-foreground)]" aria-live="polite">
+          Rendering preview{state.total ? ` ${state.done}/${state.total}` : ''}…
+        </p>
       </div>
     );
   }
