@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { convertDocxToPdf } from '@/lib/convert';
+import { convertDocxToPdfSmart } from '@/lib/convert';
 import { usePendingDoc } from '@/lib/handoff';
 import { ConvertHeader } from '@/components/pdf/ConvertHeader';
 import { DropZone } from '@/components/pdf/DropZone';
@@ -14,6 +14,7 @@ export default function DocxToPdfPage() {
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [usedFallback, setUsedFallback] = useState(false);
 
   usePendingDoc((f) => setFile(f));
 
@@ -21,11 +22,16 @@ export default function DocxToPdfPage() {
     if (!file) return;
     setBusy(true);
     setError(null);
+    setUsedFallback(false);
     track('tool_used', 'docx-to-pdf');
     try {
-      downloadBlob(await convertDocxToPdf(file), file.name.replace(/\.docx$/i, '') + '.pdf');
+      const { bytes, fidelity } = await convertDocxToPdfSmart(file);
+      setUsedFallback(fidelity === 'basic');
+      track('conversion', 'docx-to-pdf', { fidelity });
+      downloadBlob(bytes, file.name.replace(/\.docx$/i, '') + '.pdf');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Conversion failed.');
+      track('error', 'docx-to-pdf');
     } finally {
       setBusy(false);
     }
@@ -35,18 +41,20 @@ export default function DocxToPdfPage() {
     <div className="flex flex-col gap-6">
       <ProcessingOverlay show={busy} label="Converting to PDF…" />
       <ConvertHeader slug="docx-to-pdf" />
-      <p className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-800 dark:text-amber-300">
-        On-device conversion captures text and basic structure (headings, paragraphs, lists) as
-        selectable text. For pixel-perfect Word layouts (complex tables, images), use the
-        server-based PDF→Word once your LibreOffice service is running.
-      </p>
+      {usedFallback && (
+        <p className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-800 dark:text-amber-300">
+          The conversion service was offline, so this PDF was produced on your device. It keeps the
+          text and basic structure (headings, paragraphs, lists) but not complex tables, images, or
+          exact fonts. Re-run when the service is reachable for a full-fidelity PDF.
+        </p>
+      )}
       {!file ? (
         <DropZone
-          onFiles={(f) => { setError(null); setFile(f[0] ?? null); }}
+          onFiles={(f) => { setError(null); setUsedFallback(false); setFile(f[0] ?? null); }}
           multiple={false}
           accept={{ 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'] }}
           label="Drop a .docx file"
-          hint="Converted entirely on your device."
+          hint="Fonts, tables and layout preserved."
         />
       ) : (
         <div className="flex flex-col gap-4">
