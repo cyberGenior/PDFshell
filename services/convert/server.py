@@ -123,14 +123,105 @@ def office_to_pdf_or_office(in_path: str, out_dir: str, target: str) -> str:
     return produced
 
 
-def pdf_to_docx(in_path: str, out_path: str) -> None:
+def _ensure_text_layer(in_path: str, work_dir: str) -> str:
+    """Make a scanned PDF convertible. pdf2docx can only reconstruct pages that
+    have an extractable text layer; image-only (scanned) pages would otherwise
+    yield an EMPTY .docx. So for any page with no text we OCR it (reusing
+    `_ocr_lines`, the same Tesseract path the editor uses) and inject an
+    INVISIBLE text layer — exactly how a "searchable PDF" works — then hand that
+    to pdf2docx. Fully digital PDFs are returned untouched (zero OCR cost)."""
+    import fitz
+
+    doc = fitz.open(in_path)
+    try:
+        scanned = [p for p in doc if not p.get_text("text").strip()]
+        if not scanned:
+            return in_path  # already has text everywhere — nothing to do
+
+        added = False
+        for page in scanned:
+            for ln in _ocr_lines(page):
+                txt = (ln.get("text") or "").strip()
+                if not txt:
+                    continue
+                try:
+                    page.insert_text(
+                        fitz.Point(ln["origin"][0], ln["origin"][1]),
+                        txt,
+                        fontsize=float(ln.get("size", 11) or 11),
+                        render_mode=3,  # invisible: selectable text behind the image
+                    )
+                    added = True
+                except Exception:
+                    pass
+
+        if not added:
+            return in_path  # OCR produced nothing usable — don't rewrite the file
+        out = os.path.join(work_dir, "ocr_input.pdf")
+        doc.save(out)
+        return out
+    finally:
+        doc.close()
+
+
+def _docx_from_text(in_path: str, out_path: str) -> None:
+    """Last-resort PDF → Word: flat-but-editable text via python-docx (already a
+    pdf2docx dependency). Used only when layout reconstruction fails outright, so
+    the user always gets an editable document rather than an error."""
+    import fitz
+    from docx import Document
+
+    doc = fitz.open(in_path)
+    out = Document()
+    try:
+        for i, page in enumerate(doc):
+            if i:
+                out.add_page_break()
+            for block in page.get_text("blocks"):
+                text = (block[4] or "").strip()
+                if text:
+                    out.add_paragraph(text)
+    finally:
+        doc.close()
+    out.save(out_path)
+
+
+def _docx_has_text(path: str) -> bool:
+    """True if the produced .docx actually contains visible text. pdf2docx ignores
+    invisible (OCR) text layers, so on a scanned PDF it silently writes an EMPTY
+    document — this lets us detect that and fall back."""
+    import re
+    import zipfile
+
+    try:
+        with zipfile.ZipFile(path) as z:
+            xml = z.read("word/document.xml").decode("utf-8", "replace")
+        return bool(re.sub(r"<[^>]+>", "", xml).strip())
+    except Exception:
+        return False
+
+
+def pdf_to_docx(in_path: str, out_path: str, work_dir: str) -> None:
     from pdf2docx import Converter
 
-    cv = Converter(in_path)
+    # OCR any scanned pages first so there's a text layer to reconstruct from.
+    src = _ensure_text_layer(in_path, work_dir)
     try:
-        cv.convert(out_path)
-    finally:
-        cv.close()
+        cv = Converter(src)
+        try:
+            cv.convert(out_path)
+        finally:
+            cv.close()
+        # pdf2docx gives the best layout for DIGITAL PDFs, but ignores the OCR
+        # text layer — so for scanned input it produces an empty doc. Only accept
+        # its output when it actually contains text.
+        if os.path.isfile(out_path) and _docx_has_text(out_path):
+            return
+    except Exception:
+        pass
+    # Scanned input (or pdf2docx failure) — build editable text from the OCR'd
+    # PDF directly (get_text DOES read the invisible layer). Never a 500/empty doc.
+    _docx_from_text(src, out_path)
 
 
 # Standard landscape 16:9 deck dimensions (EMU).
@@ -1074,7 +1165,7 @@ def convert(body: bytes, source_ext: str, target: str, use_ai: bool = False) -> 
         out_path = os.path.join(work, f"out.{target}")
 
         if source_ext == "pdf" and target == "docx":
-            pdf_to_docx(in_path, out_path)
+            pdf_to_docx(in_path, out_path, work)
         elif source_ext == "pdf" and target == "pptx":
             pdf_to_pptx(in_path, out_path, work, use_ai=use_ai)
         elif source_ext == "pdf" and target == "xlsx":

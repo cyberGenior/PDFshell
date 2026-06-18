@@ -5,6 +5,7 @@
  */
 import type { jsPDF } from 'jspdf';
 import { imagesToPdf, type ImageInput } from '@pdfshell/pdf-core';
+import { convertViaLibreOffice, ServiceUnavailableError } from '@/lib/libreoffice';
 
 /** Decode any browser-supported image and re-encode to PNG bytes via canvas. */
 async function fileToPngBytes(file: File): Promise<Uint8Array> {
@@ -123,4 +124,35 @@ export async function convertDocxToPdf(file: File): Promise<Uint8Array> {
   }
 
   return new Uint8Array(pdf.output('arraybuffer'));
+}
+
+/** Which engine actually produced the PDF, so the UI can be honest about it. */
+export type DocxToPdfFidelity = 'high' | 'basic';
+
+export interface DocxToPdfResult {
+  bytes: Uint8Array;
+  fidelity: DocxToPdfFidelity;
+}
+
+/**
+ * Premium Word → PDF: convert on the self-hosted LibreOffice service first
+ * (near pixel-perfect — keeps real fonts, tables, images, columns, headers and
+ * exact layout), and fall back to the on-device mammoth+jsPDF path ONLY when the
+ * service can't be reached. The fallback matters for the intermittent
+ * connectivity of our target market: a basic-layout PDF beats no PDF at all.
+ *
+ * We deliberately catch only ServiceUnavailableError (the service is offline) —
+ * a genuine conversion error from a reachable service is surfaced to the user
+ * rather than silently masked by a lower-fidelity result.
+ */
+export async function convertDocxToPdfSmart(file: File): Promise<DocxToPdfResult> {
+  try {
+    const bytes = await convertViaLibreOffice(file, 'pdf');
+    return { bytes, fidelity: 'high' };
+  } catch (err) {
+    if (err instanceof ServiceUnavailableError) {
+      return { bytes: await convertDocxToPdf(file), fidelity: 'basic' };
+    }
+    throw err;
+  }
 }

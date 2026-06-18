@@ -151,6 +151,12 @@ export async function convertViaLibreOffice(
   } catch {
     throw new ServiceUnavailableError();
   }
+  // A gateway status means the same-origin /svc proxy reached Next but the
+  // internal convert service is down — that's "unavailable", not a conversion
+  // error, so callers (offline fallback, "service not running" UI) treat it right.
+  if (res.status === 502 || res.status === 503 || res.status === 504) {
+    throw new ServiceUnavailableError();
+  }
   if (!res.ok) {
     const detail = await res.text().catch(() => '');
     throw new Error(`Conversion failed (${res.status}). ${detail}`.trim());
