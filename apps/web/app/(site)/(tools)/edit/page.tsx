@@ -8,9 +8,11 @@ import { DropZone } from '@/components/pdf/DropZone';
 import { SignaturePad } from '@/components/pdf/SignaturePad';
 import { Button } from '@/components/ui/button';
 import { ProcessingOverlay } from '@/components/ui/Loader';
+import { fileToPng } from '@/lib/image';
 import { downloadBlob } from '@/lib/utils';
+import { toast } from '@/lib/useToast';
 import { track } from '@/lib/track';
-import { ChevronLeft, ChevronRight, Trash2, Type, Loader2, PenLine, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Trash2, Type, Loader2, PenLine, ImagePlus, X } from 'lucide-react';
 
 const TARGET_W = 820;
 
@@ -61,6 +63,7 @@ export default function EditPage() {
   const [sigOpen, setSigOpen] = useState(false);
 
   const loaded = useRef<Set<number>>(new Set());
+  const imgInput = useRef<HTMLInputElement>(null);
 
   const loadPage = useCallback(async (idx: number, bytes: Uint8Array) => {
     setLoading(true);
@@ -124,7 +127,9 @@ export default function EditPage() {
     setSelected(item.id);
   }
 
-  function addSignature(png: Uint8Array, aspect: number) {
+  // Place any PNG (a drawn/uploaded signature OR a logo/image) as a draggable,
+  // resizable stamp on the current page. Both go through the same overlay + save.
+  function addStamp(png: Uint8Array, aspect: number) {
     const url = URL.createObjectURL(new Blob([png as BlobPart], { type: 'image/png' }));
     const width = Math.min(220, dim.w * 0.4);
     const sig: Sig = {
@@ -134,6 +139,16 @@ export default function EditPage() {
     };
     setSignatures((p) => [...p, sig]);
     setSigOpen(false);
+  }
+
+  async function pickImage(file: File) {
+    try {
+      const { bytes, aspect } = await fileToPng(file);
+      addStamp(bytes, aspect);
+    } catch {
+      setError('Could not read that image.');
+      toast.error('Could not read that image.');
+    }
   }
 
   async function save() {
@@ -172,9 +187,11 @@ export default function EditPage() {
         out = await stampImages(out, stamps);
       }
       downloadBlob(out, 'edited.pdf');
+      toast.success('Saved to your device.');
       track('conversion', 'edit');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save.');
+      toast.error('Failed to save.');
     } finally {
       setBusy(false);
     }
@@ -201,6 +218,18 @@ export default function EditPage() {
             <span className="text-xs text-[var(--muted-foreground)]"><Type className="mb-0.5 mr-1 inline size-3.5" />Click any text to edit it in place, or a blank area to add text</span>
             <div className="ml-auto flex gap-2">
               <Button variant="outline" onClick={() => setSigOpen(true)}><PenLine /> Add signature</Button>
+              <Button variant="outline" onClick={() => imgInput.current?.click()}><ImagePlus /> Add image</Button>
+              <input
+                ref={imgInput}
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) void pickImage(f);
+                  e.target.value = ''; // allow re-picking the same file
+                }}
+              />
               <Button onClick={save} disabled={busy}>Download edited PDF</Button>
               <Button variant="ghost" onClick={() => { setPdf(null); setItems([]); setSignatures([]); }}>Change file</Button>
             </div>
@@ -250,7 +279,7 @@ export default function EditPage() {
         </div>
       )}
 
-      {sigOpen && <SignaturePad onClose={() => setSigOpen(false)} onComplete={addSignature} />}
+      {sigOpen && <SignaturePad onClose={() => setSigOpen(false)} onComplete={addStamp} />}
     </ToolShell>
   );
 }
@@ -296,12 +325,12 @@ function SignatureBox({
       onPointerUp={() => (drag.current = null)}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={sig.url} alt="Signature" className="pointer-events-none h-full w-full select-none" draggable={false} />
+      <img src={sig.url} alt="Placed stamp" className="pointer-events-none h-full w-full select-none" draggable={false} />
       <button
         onClick={(e) => { e.stopPropagation(); onRemove(); }}
         onPointerDown={(e) => e.stopPropagation()}
         className="absolute -right-2.5 -top-2.5 grid size-5 place-items-center rounded-full bg-black/60 text-white opacity-0 transition-opacity group-hover:opacity-100"
-        aria-label="Remove signature"
+        aria-label="Remove stamp"
       >
         <X className="size-3" />
       </button>
