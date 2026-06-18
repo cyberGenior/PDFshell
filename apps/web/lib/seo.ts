@@ -94,6 +94,10 @@ export const PAGES: Record<string, Seo> = {
     title: 'Protect PDF with Password — or Unlock',
     description: 'Add AES-256 password protection to a PDF, or remove a password you know. Free, no watermark.',
   },
+  '/redact': {
+    title: 'Redact PDF — Permanently Remove Text & Images',
+    description: 'Black out and permanently delete sensitive text or images from a PDF — the hidden content can’t be copied or recovered. Free and private.',
+  },
   '/about': {
     title: 'About PDFShell',
     description: 'PDFShell is a free, open-source, privacy-first PDF toolkit that runs entirely in your browser — built for low-bandwidth connections.',

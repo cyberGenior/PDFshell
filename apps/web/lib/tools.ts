@@ -11,6 +11,7 @@ import {
   Crop,
   Lock,
   ScanLine,
+  Eraser,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -134,6 +135,15 @@ export const TOOLS: ToolMeta[] = [
     tagline: 'Password-protect or unlock',
     description: 'Add AES-256 password protection to a PDF, or remove a password you know.',
     icon: Lock,
+    phase: 4,
+    ready: true,
+  },
+  {
+    slug: 'redact',
+    name: 'Redact',
+    tagline: 'Permanently remove content',
+    description: 'Black out text or images and permanently delete them — the hidden content can’t be copied or recovered.',
+    icon: Eraser,
     phase: 4,
     ready: true,
   },

@@ -1066,6 +1066,40 @@ def edit_apply(pdf_bytes: bytes, pages: list) -> bytes:
         doc.close()
 
 
+def redact_pdf(pdf_bytes: bytes, pages: list) -> bytes:
+    """TRUE redaction: for each box, draw an opaque black rectangle AND remove the
+    underlying text/vectors/image content beneath it (PyMuPDF apply_redactions) —
+    so the hidden content can't be recovered by selecting or copying. Boxes are in
+    PDF points with a top-left origin, matching the editor's coordinate space."""
+    import fitz
+
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    try:
+        for item in pages:
+            idx = int(item.get("page", 0))
+            if idx < 0 or idx >= doc.page_count:
+                continue
+            page = doc[idx]
+            applied = False
+            for b in item.get("boxes", []):
+                try:
+                    x, y, w, h = float(b["x"]), float(b["y"]), float(b["w"]), float(b["h"])
+                except (KeyError, TypeError, ValueError):
+                    continue
+                if w <= 0 or h <= 0:
+                    continue
+                page.add_redact_annot(fitz.Rect(x, y, x + w, y + h), fill=(0, 0, 0))
+                applied = True
+            if applied:
+                try:
+                    page.apply_redactions(images=fitz.PDF_REDACT_IMAGE_PIXELS)
+                except TypeError:
+                    page.apply_redactions()
+        return doc.tobytes(deflate=True, garbage=3)
+    finally:
+        doc.close()
+
+
 def convert(body: bytes, source_ext: str, target: str, use_ai: bool = False) -> bytes:
     with tempfile.TemporaryDirectory(prefix="job-", dir=TMP_ROOT) as work:
         in_path = os.path.join(work, f"in.{source_ext}")
@@ -1184,6 +1218,13 @@ class Handler(BaseHTTPRequestHandler):
                     payload = json.loads(body)
                     pdf = base64.b64decode(payload["pdf"])
                     out = edit_apply(pdf, payload.get("pages", []))
+                    return self._send(200, out, "application/pdf")
+
+                # /redact: JSON { pdf: base64, pages: [{page, boxes:[{x,y,w,h}]}] } → redacted PDF.
+                if parsed.path == "/redact":
+                    payload = json.loads(body)
+                    pdf = base64.b64decode(payload["pdf"])
+                    out = redact_pdf(pdf, payload.get("pages", []))
                     return self._send(200, out, "application/pdf")
 
             return self._send(404, b"Not found")

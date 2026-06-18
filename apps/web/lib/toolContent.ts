@@ -315,6 +315,22 @@ export const TOOL_CONTENT: Record<string, ToolContent> = {
       FREE_FAQ,
     ],
   },
+  '/redact': {
+    heading: 'Redact a PDF — permanently remove sensitive content',
+    intro:
+      'Redacting a PDF means more than drawing a black box over a name or number — done properly, the text and images underneath are deleted from the file, so they can’t be selected, copied, or recovered. PDFShell does true redaction: open your PDF, drag a box across anything you want gone — account numbers, signatures, addresses, faces — across as many pages as you like, and download a clean copy with that content permanently removed. It’s the safe way to share contracts, bank statements, medical records or ID scans without leaking what’s underneath. Your file is processed on the PDFShell server and deleted immediately after — never stored.',
+    steps: [
+      'Drop in the PDF you want to redact.',
+      'Drag a box over each piece of text or image to remove — on any page.',
+      'Click “Redact & download” to get a copy with that content permanently deleted.',
+    ],
+    faqs: [
+      { q: 'Is the content really gone, or just hidden?', a: 'Really gone. PDFShell removes the underlying text and image data beneath each box (not just a black rectangle on top), so it can’t be copied, searched, or recovered.' },
+      { q: 'Can I redact more than one area or page?', a: 'Yes — add as many boxes as you need across every page, then apply them all at once.' },
+      SERVER_PRIVACY_FAQ,
+      FREE_FAQ,
+    ],
+  },
 };
 
 export function getToolContent(path: string): ToolContent | undefined {
