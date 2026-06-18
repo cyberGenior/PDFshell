@@ -25,10 +25,20 @@ export type { ImageInput, ImagesToPdfOptions } from './images.js';
 export { stampImages } from './stamp.js';
 export type { ImageStamp } from './stamp.js';
 
-export { rotatePages, rotateAll, addPageNumbers, addWatermark, cropPages } from './transform.js';
+export {
+  rotatePages,
+  rotateAll,
+  addPageNumbers,
+  addWatermark,
+  addImageWatermark,
+  cropPages,
+} from './transform.js';
 export type {
   PageNumberOptions,
   PageNumberPosition,
   WatermarkOptions,
+  ImageWatermarkOptions,
+  WatermarkPosition,
+  StampFontFamily,
   CropMargins,
 } from './transform.js';

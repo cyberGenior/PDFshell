@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { addPageNumbers, getPageCount, type PageNumberPosition } from '@pdfshell/pdf-core';
+import { addPageNumbers, getPageCount, type PageNumberPosition, type StampFontFamily } from '@pdfshell/pdf-core';
 import { loadPdf, renderThumbnail } from '@/lib/pdf/render';
 import { usePendingDoc } from '@/lib/handoff';
 import { usePersistedState } from '@/lib/usePersistedState';
@@ -9,11 +9,19 @@ import { ToolShell } from '@/components/pdf/ToolShell';
 import { DropZone } from '@/components/pdf/DropZone';
 import { ResultCard } from '@/components/pdf/ResultCard';
 import { Button } from '@/components/ui/button';
+import { OptionCard } from '@/components/ui/OptionCard';
 import { ProcessingOverlay } from '@/components/ui/Loader';
-import { downloadBlob, formatBytes, cn } from '@/lib/utils';
+import { downloadBlob, formatBytes, hexToRgb, cn } from '@/lib/utils';
+import { toast } from '@/lib/useToast';
 import { track } from '@/lib/track';
 
 type Format = 'n' | 'n-of-total' | 'page-n-of-total';
+
+const FONTS: { value: StampFontFamily; label: string }[] = [
+  { value: 'sans', label: 'Sans' },
+  { value: 'serif', label: 'Serif' },
+  { value: 'mono', label: 'Mono' },
+];
 
 const POSITIONS: { value: PageNumberPosition; label: string }[] = [
   { value: 'top-left', label: 'Top left' },
@@ -30,6 +38,12 @@ export default function PageNumbersPage() {
   const [thumb, setThumb] = useState<string | null>(null);
   const [position, setPosition] = usePersistedState<PageNumberPosition>('pagenum-position', 'bottom-center');
   const [format, setFormat] = usePersistedState<Format>('pagenum-format', 'n');
+  const [pnFont, setPnFont] = usePersistedState<StampFontFamily>('pagenum-font', 'sans');
+  const [fontSize, setFontSize] = usePersistedState('pagenum-size', 11);
+  const [bold, setBold] = usePersistedState('pagenum-bold', false);
+  const [color, setColor] = usePersistedState('pagenum-color', '#404040');
+  const [prefix, setPrefix] = usePersistedState('pagenum-prefix', '');
+  const [suffix, setSuffix] = usePersistedState('pagenum-suffix', '');
   const [startAt, setStartAt] = useState(1);
   const [fromPage, setFromPage] = useState(1);
   const [busy, setBusy] = useState(false);
@@ -70,25 +84,34 @@ export default function PageNumbersPage() {
         format,
         startAt,
         fromPage,
+        font: pnFont,
+        fontSize,
+        bold,
+        color: hexToRgb(color),
+        prefix,
+        suffix,
       });
       const name = file.name.replace(/\.pdf$/i, '') + '_numbered.pdf';
       downloadBlob(bytes, name);
       setResult({ bytes, name });
+      toast.success('Saved to your device.');
       track('conversion', 'page-numbers');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Numbering failed.');
+      toast.error('Numbering failed.');
     } finally {
       setBusy(false);
     }
   }
 
   const sampleLast = startAt + Math.max(0, total - fromPage);
-  const sample =
+  const core =
     format === 'page-n-of-total'
       ? `Page ${startAt} of ${sampleLast}`
       : format === 'n-of-total'
         ? `${startAt} / ${sampleLast}`
         : `${startAt}`;
+  const sample = `${prefix}${core}${suffix}`;
 
   return (
     <ToolShell slug="page-numbers">
@@ -114,36 +137,84 @@ export default function PageNumbersPage() {
               <legend className="mb-1 text-sm font-medium">Position</legend>
               <div className="grid grid-cols-3 gap-2">
                 {POSITIONS.map((p) => (
-                  <button
+                  <OptionCard
                     key={p.value}
-                    type="button"
-                    onClick={() => { setPosition(p.value); setResult(null); }}
-                    aria-pressed={position === p.value}
-                    className={cn(
-                      'rounded-lg border px-2 py-2 text-xs transition-colors focus-visible:ring-2 focus-visible:ring-[var(--ring)]',
-                      position === p.value
-                        ? 'border-[var(--brand)] bg-[color-mix(in_oklch,var(--brand)_8%,transparent)] font-medium'
-                        : 'border-[var(--border)] hover:bg-[var(--surface-2)]',
-                    )}
-                  >
-                    {p.label}
-                  </button>
+                    compact
+                    selected={position === p.value}
+                    onSelect={() => { setPosition(p.value); setResult(null); }}
+                    label={p.label}
+                  />
                 ))}
               </div>
             </fieldset>
 
+            <div className="flex flex-wrap items-end gap-4">
+              <label className="flex flex-col gap-1.5 text-sm">
+                <span className="font-medium">Format</span>
+                <select
+                  value={format}
+                  onChange={(e) => { setFormat(e.target.value as Format); setResult(null); }}
+                  className="h-10 w-fit rounded-md border border-[var(--border)] bg-[var(--background)] px-3"
+                >
+                  <option value="n">4</option>
+                  <option value="n-of-total">4 / 12</option>
+                  <option value="page-n-of-total">Page 4 of 12</option>
+                </select>
+              </label>
+              <label className="flex flex-col gap-1.5 text-sm">
+                <span className="font-medium">Font</span>
+                <select
+                  value={pnFont}
+                  onChange={(e) => { setPnFont(e.target.value as StampFontFamily); setResult(null); }}
+                  className="h-10 w-fit rounded-md border border-[var(--border)] bg-[var(--background)] px-3"
+                >
+                  {FONTS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
+                </select>
+              </label>
+              <label className="flex flex-col gap-1.5 text-sm">
+                <span className="font-medium">Colour</span>
+                <input
+                  type="color"
+                  value={color}
+                  onChange={(e) => { setColor(e.target.value); setResult(null); }}
+                  className="h-10 w-16 cursor-pointer rounded-md border border-[var(--border)] bg-[var(--background)] p-1"
+                />
+              </label>
+              <label className="flex items-center gap-2 self-center pt-5 text-sm">
+                <input type="checkbox" checked={bold} onChange={(e) => { setBold(e.target.checked); setResult(null); }} className="size-4 accent-[var(--brand)]" />
+                <span className="font-medium">Bold</span>
+              </label>
+            </div>
+
             <label className="flex flex-col gap-1.5 text-sm">
-              <span className="font-medium">Format</span>
-              <select
-                value={format}
-                onChange={(e) => { setFormat(e.target.value as Format); setResult(null); }}
-                className="h-10 w-fit rounded-md border border-[var(--border)] bg-[var(--background)] px-3"
-              >
-                <option value="n">4</option>
-                <option value="n-of-total">4 / 12</option>
-                <option value="page-n-of-total">Page 4 of 12</option>
-              </select>
+              <span className="font-medium">Size — {fontSize} pt</span>
+              <input
+                type="range" min={7} max={36} value={fontSize}
+                onChange={(e) => { setFontSize(Number(e.target.value)); setResult(null); }}
+                className="w-full max-w-xs accent-[var(--brand)]"
+              />
             </label>
+
+            <div className="flex flex-wrap gap-4">
+              <label className="flex flex-col gap-1.5 text-sm">
+                <span className="font-medium">Prefix</span>
+                <input
+                  type="text" value={prefix} maxLength={12}
+                  onChange={(e) => { setPrefix(e.target.value); setResult(null); }}
+                  placeholder="e.g. “— ”"
+                  className="h-10 w-32 rounded-md border border-[var(--border)] bg-[var(--background)] px-3"
+                />
+              </label>
+              <label className="flex flex-col gap-1.5 text-sm">
+                <span className="font-medium">Suffix</span>
+                <input
+                  type="text" value={suffix} maxLength={12}
+                  onChange={(e) => { setSuffix(e.target.value); setResult(null); }}
+                  placeholder="e.g. “ —”"
+                  className="h-10 w-32 rounded-md border border-[var(--border)] bg-[var(--background)] px-3"
+                />
+              </label>
+            </div>
 
             <div className="flex flex-wrap gap-4">
               <label className="flex flex-col gap-1.5 text-sm">
@@ -190,12 +261,16 @@ export default function PageNumbersPage() {
                 <span
                   aria-hidden
                   className={cn(
-                    'absolute px-2 text-[11px] font-medium text-neutral-600',
+                    'absolute px-2 text-[11px]',
+                    bold ? 'font-semibold' : 'font-medium',
+                    pnFont === 'serif' && 'font-serif',
+                    pnFont === 'mono' && 'font-mono',
                     position.startsWith('top') ? 'top-2' : 'bottom-2',
                     position.endsWith('left') && 'left-2',
                     position.endsWith('right') && 'right-2',
                     position.endsWith('center') && 'left-1/2 -translate-x-1/2',
                   )}
+                  style={{ color }}
                 >
                   {sample}
                 </span>
