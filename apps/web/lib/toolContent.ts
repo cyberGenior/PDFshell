@@ -331,6 +331,23 @@ export const TOOL_CONTENT: Record<string, ToolContent> = {
       FREE_FAQ,
     ],
   },
+  '/fill': {
+    heading: 'Fill in a PDF form online',
+    intro:
+      'Lots of PDFs — applications, tax and government forms, contracts, invoices — ship as interactive forms with real fields you’re meant to type into. PDFShell detects those fields automatically and places an input right where each one sits on the page, so you can fill the whole form in your browser without printing, scanning, or installing anything. Type your answers, tick the checkboxes, pick from dropdowns, then download a completed copy — and optionally “flatten” it so the answers are locked in and look like part of the document. It all happens on your device: the form and everything you type stay private and are never uploaded. If a PDF isn’t an interactive form, the Edit tool lets you place text anywhere on the page instead.',
+    steps: [
+      'Drop in a fillable PDF form.',
+      'Type into the detected fields, tick boxes and choose options.',
+      'Optionally flatten to lock the answers, then download the completed form.',
+    ],
+    faqs: [
+      { q: 'How do I fill a PDF form without printing it?', a: 'Open the PDF here — PDFShell finds its form fields and lets you type straight into them, then download the completed file. No printing or scanning.' },
+      { q: 'What if my PDF isn’t a fillable form?', a: 'If the PDF has no interactive fields, use the Edit tool to place text anywhere on the page instead.' },
+      { q: 'What does “flatten” do?', a: 'Flattening merges your answers into the page so they can’t be edited and display identically everywhere — handy before sending a form back.' },
+      PRIVACY_FAQ,
+      FREE_FAQ,
+    ],
+  },
 };
 
 export function getToolContent(path: string): ToolContent | undefined {

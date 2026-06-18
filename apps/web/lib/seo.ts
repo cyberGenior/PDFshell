@@ -98,6 +98,10 @@ export const PAGES: Record<string, Seo> = {
     title: 'Redact PDF — Permanently Remove Text & Images',
     description: 'Black out and permanently delete sensitive text or images from a PDF — the hidden content can’t be copied or recovered. Free and private.',
   },
+  '/fill': {
+    title: 'Fill PDF Forms Online',
+    description: 'Fill in interactive PDF form fields right in your browser, then flatten to lock your answers. Free, private — nothing uploaded.',
+  },
   '/about': {
     title: 'About PDFShell',
     description: 'PDFShell is a free, open-source, privacy-first PDF toolkit that runs entirely in your browser — built for low-bandwidth connections.',

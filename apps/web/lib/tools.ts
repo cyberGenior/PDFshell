@@ -12,6 +12,7 @@ import {
   Lock,
   ScanLine,
   Eraser,
+  FormInput,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -144,6 +145,15 @@ export const TOOLS: ToolMeta[] = [
     tagline: 'Permanently remove content',
     description: 'Black out text or images and permanently delete them — the hidden content can’t be copied or recovered.',
     icon: Eraser,
+    phase: 4,
+    ready: true,
+  },
+  {
+    slug: 'fill',
+    name: 'Fill Forms',
+    tagline: 'Complete PDF forms',
+    description: 'Detects a PDF form’s fields and lets you type into them on your device — then lock the answers in.',
+    icon: FormInput,
     phase: 4,
     ready: true,
   },
