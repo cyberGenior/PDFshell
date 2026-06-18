@@ -163,7 +163,7 @@ export default function ScanPage() {
       }
       const { imagesToPdf } = await import('@pdfshell/pdf-core');
       const bytes = await imagesToPdf(images);
-      const name = 'scan.pdf';
+      const name = `scan_${new Date().toISOString().slice(0, 10)}.pdf`;
       downloadBlob(bytes, name);
       setResult({ bytes, name });
       track('conversion', 'scan');

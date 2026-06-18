@@ -9,7 +9,7 @@ import { SignaturePad } from '@/components/pdf/SignaturePad';
 import { Button } from '@/components/ui/button';
 import { ProcessingOverlay } from '@/components/ui/Loader';
 import { fileToPng } from '@/lib/image';
-import { downloadBlob } from '@/lib/utils';
+import { downloadBlob, outputName } from '@/lib/utils';
 import { toast } from '@/lib/useToast';
 import { track } from '@/lib/track';
 import { ChevronLeft, ChevronRight, Trash2, Type, Loader2, PenLine, ImagePlus, X } from 'lucide-react';
@@ -48,6 +48,7 @@ const isDirty = (it: Item) => (it.isNew ? it.text.trim() !== '' : it.text !== it
 
 export default function EditPage() {
   const [pdf, setPdf] = useState<Uint8Array | null>(null);
+  const [fileName, setFileName] = useState('document.pdf');
   const [pageCount, setPageCount] = useState(0);
   const [pageNum, setPageNum] = useState(0); // 0-based
   const [scale, setScale] = useState(1);
@@ -88,6 +89,7 @@ export default function EditPage() {
 
   async function open(file: File) {
     setError(null);
+    setFileName(file.name);
     const bytes = new Uint8Array(await file.arrayBuffer());
     loaded.current = new Set();
     setItems([]);
@@ -186,7 +188,7 @@ export default function EditPage() {
         const { stampImages } = await import('@pdfshell/pdf-core');
         out = await stampImages(out, stamps);
       }
-      downloadBlob(out, 'edited.pdf');
+      downloadBlob(out, outputName(fileName, '_edited'));
       toast.success('Saved to your device.');
       track('conversion', 'edit');
     } catch (e) {

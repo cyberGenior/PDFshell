@@ -17,7 +17,7 @@ import { ResultCard } from '@/components/pdf/ResultCard';
 import { Button } from '@/components/ui/button';
 import { OptionCard } from '@/components/ui/OptionCard';
 import { ProcessingOverlay } from '@/components/ui/Loader';
-import { downloadBlob, formatBytes } from '@/lib/utils';
+import { downloadBlob, formatBytes, isTooLargeForUpload, MAX_UPLOAD_MB } from '@/lib/utils';
 import { toast } from '@/lib/useToast';
 import { track } from '@/lib/track';
 
@@ -91,6 +91,10 @@ export default function CompressPage() {
 
   async function run() {
     if (!file) return;
+    if (method === 'strong' && isTooLargeForUpload(file)) {
+      toast.error(`That file is over ${MAX_UPLOAD_MB} MB — use “Flatten” or “Lossless” (on-device) instead.`);
+      return;
+    }
     setBusy(true);
     setError(null);
     setServiceDown(false);
@@ -212,11 +216,11 @@ export default function CompressPage() {
           )}
 
           {serviceDown && (
-            <div className="rounded-md border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-500">
-              <p className="font-medium">Compression service isn’t running.</p>
-              <p className="mt-1 text-red-500/90">
-                Start it with <code className="rounded bg-black/10 px-1 dark:bg-white/10">docker compose up convert</code>,
-                or use an on-device method — “flatten” gives similar savings on scans.
+            <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-800 dark:text-amber-300">
+              <p className="font-medium">The processing service is temporarily unavailable.</p>
+              <p className="mt-1">
+                Please try again in a moment — or switch to an on-device method below
+                (“Flatten” gives similar savings on scans, and never leaves your device).
               </p>
             </div>
           )}
