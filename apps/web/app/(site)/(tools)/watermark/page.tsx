@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Type, ImageIcon } from 'lucide-react';
 import type { WatermarkPosition, StampFontFamily } from '@pdfshell/pdf-core';
 import { loadPdf, renderThumbnail } from '@/lib/pdf/render';
@@ -16,8 +16,10 @@ import { OptionCard } from '@/components/ui/OptionCard';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Alert } from '@/components/ui/Alert';
+import { BatchPanel } from '@/components/pdf/BatchPanel';
 import { ProcessingOverlay } from '@/components/ui/Loader';
-import { downloadBlob, formatBytes, hexToRgb, cn } from '@/lib/utils';
+import { downloadBlob, formatBytes, hexToRgb, outputName, cn } from '@/lib/utils';
+import { useBatch } from '@/lib/useBatch';
 import { toast } from '@/lib/useToast';
 import { track } from '@/lib/track';
 
@@ -38,6 +40,7 @@ const FONTS: { value: StampFontFamily; label: string }[] = [
 
 export default function WatermarkPage() {
   const [file, setFile] = useState<File | null>(null);
+  const [batchFiles, setBatchFiles] = useState<File[]>([]);
   const [thumb, setThumb] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>('text');
 
@@ -142,8 +145,15 @@ export default function WatermarkPage() {
   return (
     <ToolShell slug="watermark">
       <ProcessingOverlay show={busy} label="Stamping the watermark…" />
-      {!file ? (
-        <DropZone onFiles={(f) => f[0] && open(f[0])} multiple={false} label="Drop a PDF to watermark" />
+      {batchFiles.length > 1 ? (
+        <WatermarkBatch files={batchFiles} onExit={() => setBatchFiles([])} />
+      ) : !file ? (
+        <DropZone
+          onFiles={(f) => { if (f.length > 1) setBatchFiles(f); else if (f[0]) open(f[0]); }}
+          multiple
+          label="Drop one or more PDFs to watermark"
+          hint="Drop several to watermark them all at once."
+        />
       ) : (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_minmax(240px,340px)]">
           <div className="flex flex-col gap-5">
@@ -384,5 +394,100 @@ function PreviewMark({
     >
       {text || '…'}
     </span>
+  );
+}
+
+/** Apply the same text watermark to many PDFs at once and download as a ZIP. */
+function WatermarkBatch({ files, onExit }: { files: File[]; onExit: () => void }) {
+  const [text, setText] = useState('CONFIDENTIAL');
+  const [font, setFont] = useState<StampFontFamily>('sans');
+  const [color, setColor] = useState('#737373');
+  const [position, setPosition] = useState<WatermarkPosition>('center');
+  const [tile, setTile] = useState(false);
+  const [opacity, setOpacity] = useState(18);
+  const batch = useBatch();
+
+  // Seed the queue when the dropped file set changes.
+  const { setFiles } = batch;
+  useEffect(() => { setFiles(files); }, [files, setFiles]);
+
+  async function apply() {
+    if (!text.trim()) return;
+    track('tool_used', 'watermark', { batch: true });
+    await batch.run(
+      async (file) => {
+        const src = new Uint8Array(await file.arrayBuffer());
+        const core = await import('@pdfshell/pdf-core');
+        return core.addWatermark(src, text.trim(), {
+          opacity: opacity / 100, angle: 45, color: hexToRgb(color), font, position, tile,
+        });
+      },
+      (file) => outputName(file.name, '_watermarked'),
+    );
+    track('conversion', 'watermark', { batch: true });
+  }
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div className="flex items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--card)] px-4 py-3">
+        <p className="font-medium">{files.length} PDFs · batch watermark</p>
+        <Button variant="ghost" size="sm" onClick={onExit} disabled={batch.running}>Change files</Button>
+      </div>
+      <PrivacyNote mode="device" />
+
+      <label className="flex flex-col gap-1.5 text-sm">
+        <span className="font-medium">Watermark text</span>
+        <Input value={text} maxLength={60} onChange={(e) => setText(e.target.value)} placeholder="e.g. DRAFT" />
+      </label>
+
+      <div className="flex flex-wrap items-end gap-4">
+        <label className="flex flex-col gap-1.5 text-sm">
+          <span className="font-medium">Font</span>
+          <Select value={font} onChange={(e) => setFont(e.target.value as StampFontFamily)}>
+            {FONTS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
+          </Select>
+        </label>
+        <label className="flex flex-col gap-1.5 text-sm">
+          <span className="font-medium">Colour</span>
+          <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-10 w-16 cursor-pointer rounded-md border border-[var(--border)] bg-[var(--background)] p-1" />
+        </label>
+      </div>
+
+      <fieldset className="flex flex-col gap-2">
+        <legend className="mb-1 text-sm font-medium">Position</legend>
+        <div className={cn('grid w-fit grid-cols-3 gap-1.5', tile && 'pointer-events-none opacity-40')}>
+          {POSITION_GRID.map((p) => (
+            <OptionCard key={p.value} compact selected={position === p.value} onSelect={() => setPosition(p.value)} className="size-10 text-center">
+              <span className="grid h-full place-items-center text-base leading-none">{p.glyph}</span>
+            </OptionCard>
+          ))}
+        </div>
+      </fieldset>
+
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" checked={tile} onChange={(e) => setTile(e.target.checked)} className="size-4 accent-[var(--brand)]" />
+        <span className="font-medium">Tile across the whole page</span>
+      </label>
+
+      <label className="flex flex-col gap-1.5 text-sm">
+        <span className="font-medium">Opacity — {opacity}%</span>
+        <input type="range" min={5} max={80} value={opacity} onChange={(e) => setOpacity(Number(e.target.value))} className="w-full max-w-xs accent-[var(--brand)]" />
+      </label>
+
+      <div>
+        <Button onClick={apply} disabled={batch.running || !text.trim()}>
+          {batch.running ? 'Watermarking…' : `Watermark ${files.length} PDFs`}
+        </Button>
+      </div>
+
+      <BatchPanel
+        items={batch.items}
+        running={batch.running}
+        doneCount={batch.doneCount}
+        errorCount={batch.errorCount}
+        onDownloadZip={() => batch.downloadZip('watermarked.zip')}
+        zipName="watermarked.zip"
+      />
+    </div>
   );
 }
