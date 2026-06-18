@@ -13,6 +13,9 @@ import { PrivacyNote } from '@/components/pdf/PrivacyNote';
 import { ResultCard } from '@/components/pdf/ResultCard';
 import { Button } from '@/components/ui/button';
 import { OptionCard } from '@/components/ui/OptionCard';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { Alert } from '@/components/ui/Alert';
 import { ProcessingOverlay } from '@/components/ui/Loader';
 import { downloadBlob, formatBytes, hexToRgb, cn } from '@/lib/utils';
 import { toast } from '@/lib/useToast';
@@ -180,38 +183,35 @@ export default function WatermarkPage() {
               <>
                 <label className="flex flex-col gap-1.5 text-sm">
                   <span className="font-medium">Watermark text</span>
-                  <input
+                  <Input
                     type="text"
                     value={text}
                     maxLength={60}
                     onChange={(e) => { setText(e.target.value); dirty(); }}
                     placeholder="e.g. DRAFT"
-                    className="h-10 rounded-md border border-[var(--border)] bg-[var(--background)] px-3"
                   />
                 </label>
 
                 <div className="flex flex-wrap items-end gap-4">
                   <label className="flex flex-col gap-1.5 text-sm">
                     <span className="font-medium">Font</span>
-                    <select
+                    <Select
                       value={font}
                       onChange={(e) => { setFont(e.target.value as StampFontFamily); dirty(); }}
-                      className="h-10 w-fit rounded-md border border-[var(--border)] bg-[var(--background)] px-3"
                     >
                       {FONTS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
-                    </select>
+                    </Select>
                   </label>
                   <label className="flex flex-col gap-1.5 text-sm">
                     <span className="font-medium">Direction</span>
-                    <select
+                    <Select
                       value={angle}
                       onChange={(e) => { setAngle(Number(e.target.value)); dirty(); }}
-                      className="h-10 w-fit rounded-md border border-[var(--border)] bg-[var(--background)] px-3"
                     >
                       <option value={45}>Diagonal ↗</option>
                       <option value={-45}>Diagonal ↘</option>
                       <option value={0}>Horizontal →</option>
-                    </select>
+                    </Select>
                   </label>
                   <label className="flex flex-col gap-1.5 text-sm">
                     <span className="font-medium">Colour</span>
@@ -287,7 +287,7 @@ export default function WatermarkPage() {
               />
             </label>
 
-            {error && <p className="text-sm text-red-500">{error}</p>}
+            {error && <Alert variant="error">{error}</Alert>}
 
             <div className="flex items-center gap-3">
               <Button onClick={apply} disabled={busy || !ready}>

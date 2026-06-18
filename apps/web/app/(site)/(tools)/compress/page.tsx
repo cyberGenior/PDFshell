@@ -16,6 +16,7 @@ import { DropZone } from '@/components/pdf/DropZone';
 import { ResultCard } from '@/components/pdf/ResultCard';
 import { Button } from '@/components/ui/button';
 import { OptionCard } from '@/components/ui/OptionCard';
+import { Alert } from '@/components/ui/Alert';
 import { ProcessingOverlay } from '@/components/ui/Loader';
 import { downloadBlob, formatBytes, isTooLargeForUpload, MAX_UPLOAD_MB } from '@/lib/utils';
 import { toast } from '@/lib/useToast';
@@ -209,22 +210,19 @@ export default function CompressPage() {
           )}
 
           {method === 'flatten' && (
-            <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-800 dark:text-amber-300">
+            <Alert variant="warning">
               Flatten rebuilds every page as an image: great for scans, but selectable text and links
               are lost, and text-heavy PDFs can come out <em>larger</em> — if so, PDFShell keeps your original.
-            </div>
+            </Alert>
           )}
 
           {serviceDown && (
-            <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-800 dark:text-amber-300">
-              <p className="font-medium">The processing service is temporarily unavailable.</p>
-              <p className="mt-1">
-                Please try again in a moment — or switch to an on-device method below
-                (“Flatten” gives similar savings on scans, and never leaves your device).
-              </p>
-            </div>
+            <Alert variant="warning" title="The processing service is temporarily unavailable.">
+              Please try again in a moment — or switch to an on-device method below
+              (“Flatten” gives similar savings on scans, and never leaves your device).
+            </Alert>
           )}
-          {error && <p className="text-sm text-red-500">{error}</p>}
+          {error && <Alert variant="error">{error}</Alert>}
 
           {preview && result && (
             <div className="grid grid-cols-2 gap-3">
