@@ -13,7 +13,8 @@ import { ConvertHeader } from '@/components/pdf/ConvertHeader';
 import { DropZone } from '@/components/pdf/DropZone';
 import { Button } from '@/components/ui/button';
 import { ProcessingOverlay } from '@/components/ui/Loader';
-import { downloadBlob, formatBytes } from '@/lib/utils';
+import { downloadBlob, formatBytes, isTooLargeForUpload, MAX_UPLOAD_MB } from '@/lib/utils';
+import { toast } from '@/lib/useToast';
 import { track } from '@/lib/track';
 
 interface LibreOfficeConvertProps {
@@ -56,6 +57,10 @@ export function LibreOfficeConvert({
 
   async function run() {
     if (!file) return;
+    if (isTooLargeForUpload(file)) {
+      toast.error(`That file is over ${MAX_UPLOAD_MB} MB — please use a smaller file.`);
+      return;
+    }
     setBusy(true);
     setError(null);
     setServiceDown(false);
@@ -128,11 +133,9 @@ export function LibreOfficeConvert({
           )}
 
           {serviceDown && (
-            <div className="rounded-md border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-500">
-              <p className="font-medium">Conversion service isn’t running.</p>
-              <p className="mt-1 text-red-500/90">
-                Start it with <code className="rounded bg-black/10 px-1 dark:bg-white/10">docker compose up convert</code>, then try again.
-              </p>
+            <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-800 dark:text-amber-300">
+              <p className="font-medium">The conversion service is temporarily unavailable.</p>
+              <p className="mt-1">Please try again in a moment.</p>
             </div>
           )}
           {error && <p className="text-sm text-red-500">{error}</p>}

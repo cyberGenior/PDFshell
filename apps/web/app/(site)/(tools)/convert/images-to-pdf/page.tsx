@@ -7,7 +7,7 @@ import { ConvertHeader } from '@/components/pdf/ConvertHeader';
 import { DropZone } from '@/components/pdf/DropZone';
 import { Button } from '@/components/ui/button';
 import { ProcessingOverlay } from '@/components/ui/Loader';
-import { downloadBlob, formatBytes } from '@/lib/utils';
+import { downloadBlob, formatBytes, outputName } from '@/lib/utils';
 import { track } from '@/lib/track';
 
 export default function ImagesToPdfPage() {
@@ -23,7 +23,9 @@ export default function ImagesToPdfPage() {
     setError(null);
     track('tool_used', 'images-to-pdf');
     try {
-      downloadBlob(await convertImagesToPdf(files), 'converted.pdf');
+      // Name after the first image (e.g. "holiday.pdf"), or a sensible default.
+      const name = files.length === 1 ? outputName(files[0]!.name) : 'combined.pdf';
+      downloadBlob(await convertImagesToPdf(files), name);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Conversion failed.');
     } finally {

@@ -7,6 +7,7 @@ import { usePendingDoc } from '@/lib/handoff';
 import { usePersistedState } from '@/lib/usePersistedState';
 import { ToolShell } from '@/components/pdf/ToolShell';
 import { DropZone } from '@/components/pdf/DropZone';
+import { PrivacyNote } from '@/components/pdf/PrivacyNote';
 import { ResultCard } from '@/components/pdf/ResultCard';
 import { Button } from '@/components/ui/button';
 import { OptionCard } from '@/components/ui/OptionCard';
@@ -132,6 +133,7 @@ export default function PageNumbersPage() {
                 Change
               </Button>
             </div>
+            <PrivacyNote mode="device" />
 
             <fieldset className="flex flex-col gap-2">
               <legend className="mb-1 text-sm font-medium">Position</legend>

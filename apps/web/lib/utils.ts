@@ -17,6 +17,25 @@ export function hexToRgb(hex: string): { r: number; g: number; b: number } {
   };
 }
 
+/**
+ * Build a tidy output filename from the source name: strip its extension, append
+ * a suffix, add the new extension. e.g. outputName('Invoice.pdf','_compressed')
+ * → 'Invoice_compressed.pdf'. Falls back to 'document' for blank/odd names.
+ */
+export function outputName(sourceName: string, suffix = '', ext = 'pdf'): string {
+  const base = sourceName.replace(/\.[^.]+$/, '').trim() || 'document';
+  return `${base}${suffix}.${ext}`;
+}
+
+/** Server upload ceiling (mirrors the convert service's 200 MB body cap, with
+ *  headroom). Used to warn before a large upload silently 413s. */
+export const MAX_UPLOAD_MB = 190;
+
+/** True if a file is too large to send to the server-backed tools. */
+export function isTooLargeForUpload(file: File): boolean {
+  return file.size > MAX_UPLOAD_MB * 1024 * 1024;
+}
+
 /** Human-readable byte size, e.g. 1536 -> "1.5 KB". */
 export function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 B';

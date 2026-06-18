@@ -9,6 +9,7 @@ import { usePersistedState } from '@/lib/usePersistedState';
 import { fileToPng } from '@/lib/image';
 import { ToolShell } from '@/components/pdf/ToolShell';
 import { DropZone } from '@/components/pdf/DropZone';
+import { PrivacyNote } from '@/components/pdf/PrivacyNote';
 import { ResultCard } from '@/components/pdf/ResultCard';
 import { Button } from '@/components/ui/button';
 import { OptionCard } from '@/components/ui/OptionCard';
@@ -152,6 +153,7 @@ export default function WatermarkPage() {
                 Change
               </Button>
             </div>
+            <PrivacyNote mode="device" />
 
             {/* Text vs image */}
             <div className="flex rounded-lg border border-[var(--border)] bg-[var(--surface)] p-1 text-sm" role="tablist">
