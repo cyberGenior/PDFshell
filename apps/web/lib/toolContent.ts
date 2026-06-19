@@ -348,6 +348,23 @@ export const TOOL_CONTENT: Record<string, ToolContent> = {
       FREE_FAQ,
     ],
   },
+  '/translate': {
+    heading: 'Translate a document — PDF or photo',
+    intro:
+      'Need to read a contract, letter, form or sign that’s in another language? Drop in a PDF or a photo of the page and PDFShell reads the text (with OCR for photos and scans), detects what language it’s in, and translates it into the language you choose — keeping the original layout so the translation sits where the text was. It runs on a self-hosted, offline translation engine (Argos Translate), so your document is processed on the server and deleted right after, never sent to Google, DeepL or any third party. A bank of common languages is built in — English, French, Portuguese, Arabic, Swahili, Spanish and more — with others added on request. It’s free, with no sign-up and no watermark.',
+    steps: [
+      'Drop in a PDF, or take/upload a photo of the document.',
+      'Pick the language to translate into (the source is detected automatically).',
+      'Download the translated document with its layout preserved.',
+    ],
+    faqs: [
+      { q: 'Can it translate a photo of a document?', a: 'Yes — it runs OCR on photos and scans to read the text first, then translates it. Clear, well-lit images (≈150 DPI or better) work best.' },
+      { q: 'Which languages are supported?', a: 'A core bank ships in the app (English, French, Portuguese, Arabic, Swahili, Spanish, and more), and the admin can install additional language packs on demand.' },
+      { q: 'How good is the translation?', a: 'It uses the open-source Argos Translate engine — solid for everyday documents in common languages, though not quite at the level of paid services like DeepL. Layout is kept, but text that gets longer when translated is auto-fitted to its space.' },
+      SERVER_PRIVACY_FAQ,
+      FREE_FAQ,
+    ],
+  },
 };
 
 export function getToolContent(path: string): ToolContent | undefined {

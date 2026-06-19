@@ -102,6 +102,10 @@ export const PAGES: Record<string, Seo> = {
     title: 'Fill PDF Forms Online',
     description: 'Fill in interactive PDF form fields right in your browser, then flatten to lock your answers. Free, private — nothing uploaded.',
   },
+  '/translate': {
+    title: 'Translate a Document — PDF & Image Translator',
+    description: 'Detect a document’s language and translate a PDF or photo into another language while keeping the layout. Self-hosted and private — free, no sign-up.',
+  },
   '/about': {
     title: 'About PDFShell',
     description: 'PDFShell is a free, open-source, privacy-first PDF toolkit that runs entirely in your browser — built for low-bandwidth connections.',

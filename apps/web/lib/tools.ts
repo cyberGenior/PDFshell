@@ -13,6 +13,7 @@ import {
   ScanLine,
   Eraser,
   FormInput,
+  Languages,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -154,6 +155,15 @@ export const TOOLS: ToolMeta[] = [
     tagline: 'Complete PDF forms',
     description: 'Detects a PDF form’s fields and lets you type into them on your device — then lock the answers in.',
     icon: FormInput,
+    phase: 4,
+    ready: true,
+  },
+  {
+    slug: 'translate',
+    name: 'Translate',
+    tagline: 'Translate documents',
+    description: 'Detect a document’s language and translate a PDF or photo to another language, keeping the layout.',
+    icon: Languages,
     phase: 4,
     ready: true,
   },
