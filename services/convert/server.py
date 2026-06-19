@@ -26,6 +26,7 @@ import tempfile
 import threading
 import time
 import urllib.request
+import zipfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 
@@ -1159,6 +1160,67 @@ def installed_languages():
     return sorted(codes)
 
 
+_ARGOS_UA = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) PDFShell/1.0"}
+_ARGOS_INDEX_URL = os.environ.get(
+    "ARGOS_INDEX_URL",
+    "https://raw.githubusercontent.com/argosopentech/argospm-index/main/index.json",
+)
+
+
+def _argos_index():
+    req = urllib.request.Request(_ARGOS_INDEX_URL, headers=_ARGOS_UA)
+    with urllib.request.urlopen(req, timeout=30) as r:
+        return json.loads(r.read())
+
+
+def available_languages():
+    """The full Argos catalogue, each flagged installed or not (for the admin)."""
+    idx = _scan_packages()
+    out = []
+    for e in _argos_index():
+        fc, tc = e.get("from_code"), e.get("to_code")
+        if not fc or not tc:
+            continue
+        out.append({
+            "from_code": fc, "to_code": tc,
+            "from_name": e.get("from_name", fc), "to_name": e.get("to_name", tc),
+            "installed": (fc, tc) in idx,
+        })
+    return out
+
+
+def install_pack(frm: str, to: str) -> None:
+    """Download + extract one `.argosmodel` pack into the language bank."""
+    link = None
+    for e in _argos_index():
+        if e.get("from_code") == frm and e.get("to_code") == to:
+            links = e.get("links") or []
+            link = links[0] if links else None
+            break
+    if not link:
+        raise RuntimeError(f"No pack available for {frm}->{to}")
+    dest = os.path.join(_ARGOS_DIR, f"{frm}_{to}")
+    req = urllib.request.Request(link, headers=_ARGOS_UA)
+    with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp:
+        with urllib.request.urlopen(req, timeout=900) as resp:
+            tmp.write(resp.read())
+        path = tmp.name
+    os.makedirs(dest, exist_ok=True)
+    with zipfile.ZipFile(path) as z:
+        z.extractall(dest)
+    os.remove(path)
+    global _PKG_INDEX
+    _PKG_INDEX = None  # refresh the scan so the new pack is seen
+
+
+def uninstall_pack(frm: str, to: str) -> None:
+    d = os.path.join(_ARGOS_DIR, f"{frm}_{to}")
+    if os.path.isdir(d):
+        shutil.rmtree(d, ignore_errors=True)
+    global _PKG_INDEX
+    _PKG_INDEX = None
+
+
 def detect_language(text: str):
     """Best-effort source-language ISO code from sample text (offline FastText)."""
     sample = " ".join((text or "").split())[:2000]
@@ -1380,6 +1442,11 @@ class Handler(BaseHTTPRequestHandler):
             codes = installed_languages()
             data = {"installed": [{"code": c, "name": _LANG_NAMES.get(c, c)} for c in codes]}
             self._send(200, json.dumps(data).encode(), "application/json")
+        elif self.path.startswith("/translate/available"):
+            try:
+                self._send(200, json.dumps({"packages": available_languages()}).encode(), "application/json")
+            except Exception as exc:  # noqa: BLE001
+                self._send(502, f"Could not fetch the language catalogue: {exc}".encode())
         elif self.path.startswith("/ai-status"):
             active = fetch_active_model()
             if active:
@@ -1471,6 +1538,22 @@ class Handler(BaseHTTPRequestHandler):
                     pdf = base64.b64decode(payload["pdf"])
                     out = redact_pdf(pdf, payload.get("pages", []))
                     return self._send(200, out, "application/pdf")
+
+                # Language-bank management (admin only — gated by the internal token
+                # that the Next admin proxy attaches).
+                if parsed.path in ("/translate/install", "/translate/uninstall"):
+                    if self.headers.get("x-internal-token", "") != INTERNAL_TOKEN:
+                        return self._send(403, b"Forbidden")
+                    payload = json.loads(body)
+                    frm = (payload.get("from") or "").strip().lower()
+                    to = (payload.get("to") or "").strip().lower()
+                    if not frm.isalpha() or not to.isalpha():
+                        return self._send(400, b"Invalid language pair")
+                    if parsed.path.endswith("install"):
+                        install_pack(frm, to)
+                    else:
+                        uninstall_pack(frm, to)
+                    return self._send(200, json.dumps({"ok": True}).encode(), "application/json")
 
             return self._send(404, b"Not found")
         except WrongPassword:
