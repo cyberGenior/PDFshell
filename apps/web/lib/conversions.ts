@@ -54,9 +54,9 @@ export const CONVERSIONS: Conversion[] = [
   {
     slug: 'docx-to-pdf',
     title: 'Word → PDF',
-    description: 'Convert a .docx document to PDF, entirely on your device.',
+    description: 'Convert .docx to PDF with fonts, tables, images and layout preserved.',
     icon: FileType2,
-    engine: 'client',
+    engine: 'libreoffice',
     ready: true,
   },
   {

@@ -46,6 +46,7 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends \
        libreoffice-core libreoffice-writer libreoffice-calc libreoffice-impress \
        ghostscript fonts-dejavu fonts-liberation \
+       fonts-crosextra-carlito fonts-crosextra-caladea fonts-noto-core \
        tesseract-ocr tesseract-ocr-eng \
        tesseract-ocr-fra tesseract-ocr-por tesseract-ocr-ara tesseract-ocr-swa tesseract-ocr-spa \
        python3 python3-pip ca-certificates \

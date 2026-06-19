@@ -10,27 +10,22 @@ RUN apt-get update \
        libreoffice-core libreoffice-writer libreoffice-calc libreoffice-impress \
        ghostscript \
        fonts-dejavu fonts-liberation \
+       fonts-crosextra-carlito fonts-crosextra-caladea fonts-noto-core \
        tesseract-ocr tesseract-ocr-eng \
-       tesseract-ocr-fra tesseract-ocr-por tesseract-ocr-ara tesseract-ocr-swa tesseract-ocr-spa \
        python3 python3-pip python3-venv \
        ca-certificates \
   && rm -rf /var/lib/apt/lists/*
 
 # Purpose-built converters: PDF→Word (pdf2docx, pulls PyMuPDF), PDF→PPTX
-# (python-pptx), PDF→Excel/Text (pdfplumber + openpyxl); pytesseract+Pillow drive
-# Tesseract OCR. The Document Translator runs Argos `.argosmodel` packs directly
-# via ctranslate2 + sentencepiece (NO argostranslate pkg → no stanza/PyTorch),
-# with fast-langdetect for source-language detection.
+# (python-pptx), PDF→Excel/Text (pdfplumber + openpyxl). pytesseract+Pillow drive
+# Tesseract for OCR-ing scanned PDFs before PDF→Word.
 RUN pip3 install --no-cache-dir --break-system-packages \
       pdf2docx==0.5.8 \
       python-pptx==1.0.2 \
       pdfplumber==0.11.4 \
       openpyxl==3.1.5 \
       pytesseract==0.3.13 \
-      Pillow==11.0.0 \
-      ctranslate2 \
-      sentencepiece \
-      fast-langdetect
+      Pillow==11.0.0
 
 WORKDIR /app
 
