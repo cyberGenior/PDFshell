@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { LayoutDashboard, Activity, Sparkles, Megaphone, Settings, Share2 } from 'lucide-react';
+import { LayoutDashboard, Activity, Sparkles, Megaphone, Settings, Share2, Languages } from 'lucide-react';
 import { getSessionAdmin } from '@/lib/server/auth';
 import { AdminLogoutButton } from '@/components/admin/AdminLogoutButton';
 
@@ -8,6 +8,7 @@ const NAV = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/activity', label: 'Activity', icon: Activity },
   { href: '/admin/ai', label: 'AI Models', icon: Sparkles },
+  { href: '/admin/languages', label: 'Languages', icon: Languages },
   { href: '/admin/ads', label: 'Ads', icon: Megaphone },
   { href: '/admin/share', label: 'Share', icon: Share2 },
   { href: '/admin/settings', label: 'Settings', icon: Settings },

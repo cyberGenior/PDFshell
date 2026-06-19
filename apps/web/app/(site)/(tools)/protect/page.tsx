@@ -14,6 +14,8 @@ import { DropZone } from '@/components/pdf/DropZone';
 import { PrivacyNote } from '@/components/pdf/PrivacyNote';
 import { ResultCard } from '@/components/pdf/ResultCard';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/Input';
+import { Alert } from '@/components/ui/Alert';
 import { ProcessingOverlay } from '@/components/ui/Loader';
 import { downloadBlob, formatBytes, isTooLargeForUpload, MAX_UPLOAD_MB, cn } from '@/lib/utils';
 import { toast } from '@/lib/useToast';
@@ -151,28 +153,23 @@ export default function ProtectPage() {
             <span className="font-medium">
               {mode === 'protect' ? 'Password to set (min 4 characters)' : 'Current password'}
             </span>
-            <input
+            <Input
               type="password"
               value={password}
               onChange={(e) => { setPassword(e.target.value); setResult(null); }}
               autoComplete="new-password"
-              className="h-10 rounded-md border border-[var(--border)] bg-[var(--background)] px-3"
             />
           </label>
 
           {mode === 'protect' && (
             <label className="flex flex-col gap-1.5 text-sm">
               <span className="font-medium">Confirm password</span>
-              <input
+              <Input
                 type="password"
                 value={confirm}
                 onChange={(e) => { setConfirm(e.target.value); setResult(null); }}
                 autoComplete="new-password"
                 aria-invalid={mismatched}
-                className={cn(
-                  'h-10 rounded-md border bg-[var(--background)] px-3',
-                  mismatched ? 'border-red-500' : 'border-[var(--border)]',
-                )}
               />
               {mismatched && <span className="text-xs text-red-500">Passwords don’t match.</span>}
             </label>
@@ -207,17 +204,13 @@ export default function ProtectPage() {
               {restricted && (
                 <label className="flex flex-col gap-1.5 text-sm">
                   <span className="font-medium">Owner password (to change permissions)</span>
-                  <input
+                  <Input
                     type="password"
                     value={ownerPassword}
                     onChange={(e) => { setOwnerPassword(e.target.value); setResult(null); }}
                     autoComplete="new-password"
-                    aria-invalid={ownerNeeded}
                     placeholder="Must differ from the open password"
-                    className={cn(
-                      'h-10 rounded-md border bg-[var(--background)] px-3',
-                      ownerNeeded ? 'border-amber-500' : 'border-[var(--border)]',
-                    )}
+                    className={cn(ownerNeeded && 'border-amber-500')}
                   />
                   {ownerNeeded && (
                     <span className="text-xs text-amber-600 dark:text-amber-400">
@@ -237,12 +230,11 @@ export default function ProtectPage() {
           )}
 
           {serviceDown && (
-            <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-800 dark:text-amber-300">
-              <p className="font-medium">The processing service is temporarily unavailable.</p>
-              <p className="mt-1">Please try again in a moment.</p>
-            </div>
+            <Alert variant="warning" title="The processing service is temporarily unavailable.">
+              Please try again in a moment.
+            </Alert>
           )}
-          {error && <p className="text-sm text-red-500">{error}</p>}
+          {error && <Alert variant="error">{error}</Alert>}
 
           <div className="flex items-center gap-3">
             <Button onClick={run} disabled={busy || !ready}>

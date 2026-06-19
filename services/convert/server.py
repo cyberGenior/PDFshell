@@ -26,6 +26,7 @@ import tempfile
 import threading
 import time
 import urllib.request
+import zipfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 
@@ -94,7 +95,8 @@ MIME = {
 CORS = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
-    "Access-Control-Allow-Headers": "content-type, x-source-ext, x-password, x-owner-password, x-permissions",
+    "Access-Control-Allow-Headers": "content-type, x-source-ext, x-password, x-owner-password, x-permissions, x-internal-token",
+    "Access-Control-Expose-Headers": "x-detected-lang",
 }
 
 
@@ -1157,6 +1159,330 @@ def edit_apply(pdf_bytes: bytes, pages: list) -> bytes:
         doc.close()
 
 
+def redact_pdf(pdf_bytes: bytes, pages: list) -> bytes:
+    """TRUE redaction: for each box, draw an opaque black rectangle AND remove the
+    underlying text/vectors/image content beneath it (PyMuPDF apply_redactions) —
+    so the hidden content can't be recovered by selecting or copying. Boxes are in
+    PDF points with a top-left origin, matching the editor's coordinate space."""
+    import fitz
+
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    try:
+        for item in pages:
+            idx = int(item.get("page", 0))
+            if idx < 0 or idx >= doc.page_count:
+                continue
+            page = doc[idx]
+            applied = False
+            for b in item.get("boxes", []):
+                try:
+                    x, y, w, h = float(b["x"]), float(b["y"]), float(b["w"]), float(b["h"])
+                except (KeyError, TypeError, ValueError):
+                    continue
+                if w <= 0 or h <= 0:
+                    continue
+                page.add_redact_annot(fitz.Rect(x, y, x + w, y + h), fill=(0, 0, 0))
+                applied = True
+            if applied:
+                try:
+                    page.apply_redactions(images=fitz.PDF_REDACT_IMAGE_PIXELS)
+                except TypeError:
+                    page.apply_redactions()
+        return doc.tobytes(deflate=True, garbage=3)
+    finally:
+        doc.close()
+
+
+# ── Document translation (Argos Translate, self-hosted/offline) ──────────────
+# Extract text (native or OCR) → detect source → translate each line → redraw it
+# in place over the original (reusing the in-place edit machinery above).
+
+_LANG_NAMES = {
+    "en": "English", "fr": "French", "pt": "Portuguese", "ar": "Arabic",
+    "sw": "Swahili", "es": "Spanish", "zh": "Chinese", "hi": "Hindi",
+    "de": "German", "it": "Italian", "ru": "Russian", "ja": "Japanese",
+    "ko": "Korean", "nl": "Dutch", "tr": "Turkish", "pl": "Polish",
+    "uk": "Ukrainian", "id": "Indonesian", "vi": "Vietnamese", "fa": "Persian",
+    "he": "Hebrew", "el": "Greek", "ro": "Romanian", "cs": "Czech",
+    "sv": "Swedish", "da": "Danish", "fi": "Finnish", "hu": "Hungarian",
+    "th": "Thai", "bn": "Bengali", "ur": "Urdu", "ta": "Tamil",
+}
+
+
+# We run Argos's `.argosmodel` packs DIRECTLY via CTranslate2 + SentencePiece —
+# deliberately NOT importing the `argostranslate` Python package, because its
+# high-level API hard-imports `stanza` → PyTorch (≈1.5 GB). This keeps the image
+# lean. A pack is a folder with metadata.json, a CTranslate2 `model/` dir and a
+# `sentencepiece.model`; English-pivot covers any pair.
+_ARGOS_DIR = os.environ.get(
+    "ARGOS_PACKAGES_DIR", os.path.join(os.path.expanduser("~"), ".local/share/argos-translate/packages")
+)
+_PKG_INDEX = None          # {(from,to): dir}
+_MODEL_CACHE: dict = {}    # (from,to): (Translator, SentencePieceProcessor)
+
+
+def _scan_packages() -> dict:
+    global _PKG_INDEX
+    if _PKG_INDEX is not None:
+        return _PKG_INDEX
+    idx = {}
+    for root, _dirs, files in os.walk(_ARGOS_DIR if os.path.isdir(_ARGOS_DIR) else "."):
+        if "metadata.json" not in files:
+            continue
+        try:
+            with open(os.path.join(root, "metadata.json"), encoding="utf-8") as fh:
+                m = json.load(fh)
+            fc, tc = m.get("from_code"), m.get("to_code")
+            if fc and tc and (os.path.isdir(os.path.join(root, "model")) or
+                              os.path.isfile(os.path.join(root, "model", "model.bin"))):
+                idx[(fc, tc)] = root
+        except Exception:
+            pass
+    _PKG_INDEX = idx
+    return idx
+
+
+def installed_languages():
+    """ISO codes present in the installed packs (the 'language bank')."""
+    codes = set()
+    for fc, tc in _scan_packages():
+        codes.add(fc)
+        codes.add(tc)
+    return sorted(codes)
+
+
+_ARGOS_UA = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) PDFShell/1.0"}
+_ARGOS_INDEX_URL = os.environ.get(
+    "ARGOS_INDEX_URL",
+    "https://raw.githubusercontent.com/argosopentech/argospm-index/main/index.json",
+)
+
+
+def _argos_index():
+    req = urllib.request.Request(_ARGOS_INDEX_URL, headers=_ARGOS_UA)
+    with urllib.request.urlopen(req, timeout=30) as r:
+        return json.loads(r.read())
+
+
+def available_languages():
+    """The full Argos catalogue, each flagged installed or not (for the admin)."""
+    idx = _scan_packages()
+    out = []
+    for e in _argos_index():
+        fc, tc = e.get("from_code"), e.get("to_code")
+        if not fc or not tc:
+            continue
+        out.append({
+            "from_code": fc, "to_code": tc,
+            "from_name": e.get("from_name", fc), "to_name": e.get("to_name", tc),
+            "installed": (fc, tc) in idx,
+        })
+    return out
+
+
+def install_pack(frm: str, to: str) -> None:
+    """Download + extract one `.argosmodel` pack into the language bank."""
+    link = None
+    for e in _argos_index():
+        if e.get("from_code") == frm and e.get("to_code") == to:
+            links = e.get("links") or []
+            link = links[0] if links else None
+            break
+    if not link:
+        raise RuntimeError(f"No pack available for {frm}->{to}")
+    dest = os.path.join(_ARGOS_DIR, f"{frm}_{to}")
+    req = urllib.request.Request(link, headers=_ARGOS_UA)
+    with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp:
+        with urllib.request.urlopen(req, timeout=900) as resp:
+            tmp.write(resp.read())
+        path = tmp.name
+    os.makedirs(dest, exist_ok=True)
+    with zipfile.ZipFile(path) as z:
+        z.extractall(dest)
+    os.remove(path)
+    global _PKG_INDEX
+    _PKG_INDEX = None  # refresh the scan so the new pack is seen
+
+
+def uninstall_pack(frm: str, to: str) -> None:
+    d = os.path.join(_ARGOS_DIR, f"{frm}_{to}")
+    if os.path.isdir(d):
+        shutil.rmtree(d, ignore_errors=True)
+    global _PKG_INDEX
+    _PKG_INDEX = None
+
+
+def detect_language(text: str):
+    """Best-effort source-language ISO code from sample text (offline FastText)."""
+    sample = " ".join((text or "").split())[:2000]
+    if not sample:
+        return None
+    try:
+        from fast_langdetect import detect
+        res = detect(sample)
+        # fast-langdetect returns a list of {lang,score} (newer) or a single dict.
+        if isinstance(res, list):
+            return res[0]["lang"] if res else None
+        if isinstance(res, dict):
+            return res.get("lang")
+        return None
+    except Exception:
+        return None
+
+
+def _pack(fc: str, tc: str):
+    """Load (and cache) the CTranslate2 translator + SentencePiece model for a pair."""
+    key = (fc, tc)
+    if key not in _MODEL_CACHE:
+        import ctranslate2
+        import sentencepiece
+        d = _scan_packages()[key]
+        model_dir = os.path.join(d, "model")
+        sp_path = os.path.join(d, "sentencepiece.model")
+        if not os.path.isfile(sp_path):  # some packs name it differently
+            sp_path = next((os.path.join(d, f) for f in os.listdir(d) if f.endswith(".model")), sp_path)
+        tr = ctranslate2.Translator(model_dir, device="cpu", inter_threads=1)
+        sp = sentencepiece.SentencePieceProcessor(model_file=sp_path)
+        _MODEL_CACHE[key] = (tr, sp)
+    return _MODEL_CACHE[key]
+
+
+def _translation_chain(src: str, tgt: str):
+    """Steps src→tgt: a direct pack, or pivot via English. None if unavailable."""
+    idx = _scan_packages()
+    if (src, tgt) in idx:
+        return [(src, tgt)]
+    if src != "en" and tgt != "en" and (src, "en") in idx and ("en", tgt) in idx:
+        return [(src, "en"), ("en", tgt)]
+    return None
+
+
+def _translate_line(chain, text: str) -> str:
+    if not text.strip():
+        return text
+    out = text
+    try:
+        for fc, tc in chain:
+            tr, sp = _pack(fc, tc)
+            pieces = sp.encode(out, out_type=str)
+            if not pieces:
+                continue
+            res = tr.translate_batch([pieces], max_batch_size=1, beam_size=2)
+            # Detokenize SentencePiece pieces: join and turn the ▁ space-marker
+            # into real spaces (sp.decode on string pieces leaves ▁ in place).
+            out = "".join(res[0].hypotheses[0]).replace("▁", " ")
+            out = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", " ", out)
+            out = re.sub(r"[ \t]+", " ", out).strip()
+    except Exception:
+        return text  # never lose the original on a translation error
+    return out
+
+
+def _fit_size(ln: dict, text: str, fb_cache: dict) -> float:
+    """Shrink the font so the translated line fits the original box width — the
+    mitigation for translations that run longer than the source."""
+    import fitz
+
+    size = float(ln.get("size", 12) or 12)
+    bbox = ln["bbox"]
+    box_w = max(1.0, bbox[2] - bbox[0])
+    key = (ln.get("family", "sans"), bool(ln.get("bold")), bool(ln.get("italic")))
+    if key not in fb_cache:
+        fb_cache[key] = fitz.Font(_BASE14.get(key, "helv"))
+    try:
+        w = fb_cache[key].text_length(text, fontsize=size)
+    except Exception:
+        w = len(text) * size * 0.5
+    if w > box_w and w > 0:
+        size = max(5.0, size * box_w / w)
+    return size
+
+
+def _page_lines(page):
+    """Translatable lines for a page: native spans for digital pages, OCR for scans."""
+    if not page.get_text("text").strip():
+        return _ocr_lines(page), True  # scanned/image page
+    lines = []
+    for block in page.get_text("dict").get("blocks", []):
+        if block.get("type") != 0:
+            continue
+        for line in block.get("lines", []):
+            spans = [s for s in line.get("spans", []) if s.get("text", "").strip()]
+            if spans:
+                lines.append(_line_style(spans))
+    return lines, False
+
+
+def translate_document(body: bytes, source_ext: str, target: str, source: str = "auto"):
+    """Translate a PDF or image in place. Returns (pdf_bytes, detected_source_code)."""
+    import fitz
+
+    if source_ext in ("jpg", "jpeg", "png", "webp", "bmp", "gif", "tif", "tiff"):
+        img = fitz.open(stream=body, filetype=source_ext)
+        doc = fitz.open("pdf", img.convert_to_pdf())
+        img.close()
+    else:
+        doc = fitz.open(stream=body, filetype="pdf")
+
+    try:
+        per_page = [_page_lines(doc[p]) for p in range(doc.page_count)]
+        if source and source != "auto":
+            detected = source
+        else:
+            joined = " ".join(ln["text"] for lines, _ in per_page for ln in lines)
+            detected = detect_language(joined) or "en"
+
+        if detected == target:
+            return doc.tobytes(deflate=True), detected  # nothing to do
+
+        chain = _translation_chain(detected, target)
+        if chain is None:
+            raise RuntimeError(
+                f"No language pack for {detected}->{target}. Install it in Admin -> Languages."
+            )
+
+        doc_fonts = _build_doc_fonts(doc)
+        fb_cache: dict = {}
+
+        for pno in range(doc.page_count):
+            page = doc[pno]
+            lines, scanned = per_page[pno]
+            out_lines = []
+            for ln in lines:
+                tr = _translate_line(chain, ln["text"])
+                if not tr.strip():
+                    continue
+                new = dict(ln)
+                new["text"] = tr
+                new["size"] = _fit_size(ln, tr, fb_cache)
+                out_lines.append(new)
+            if not out_lines:
+                continue
+
+            if scanned:
+                pix = page.get_pixmap(dpi=150)
+                sc = pix.width / page.rect.width if page.rect.width else 1
+                for ln in out_lines:
+                    fill = _sample_bg(pix, ln["bbox"], sc)
+                    page.draw_rect(_pad(ln["bbox"]), color=fill, fill=fill)
+                    _draw_line(page, ln, doc_fonts, fb_cache)
+            else:
+                for ln in out_lines:
+                    page.add_redact_annot(_pad(ln["bbox"]))
+                try:
+                    page.apply_redactions(
+                        images=fitz.PDF_REDACT_IMAGE_NONE, graphics=fitz.PDF_REDACT_LINE_ART_NONE
+                    )
+                except TypeError:
+                    page.apply_redactions()
+                for ln in out_lines:
+                    _draw_line(page, ln, doc_fonts, fb_cache)
+
+        return doc.tobytes(deflate=True), detected
+    finally:
+        doc.close()
+
+
 def convert(body: bytes, source_ext: str, target: str, use_ai: bool = False) -> bytes:
     with tempfile.TemporaryDirectory(prefix="job-", dir=TMP_ROOT) as work:
         in_path = os.path.join(work, f"in.{source_ext}")
@@ -1185,9 +1511,11 @@ def convert(body: bytes, source_ext: str, target: str, use_ai: bool = False) -> 
 
 
 class Handler(BaseHTTPRequestHandler):
-    def _send(self, code, body=b"", ctype="text/plain"):
+    def _send(self, code, body=b"", ctype="text/plain", extra=None):
         self.send_response(code)
         for k, v in CORS.items():
+            self.send_header(k, v)
+        for k, v in (extra or {}).items():
             self.send_header(k, v)
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(body)))
@@ -1201,6 +1529,15 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path.startswith("/health"):
             self._send(200, b"ok")
+        elif self.path.startswith("/translate/langs"):
+            codes = installed_languages()
+            data = {"installed": [{"code": c, "name": _LANG_NAMES.get(c, c)} for c in codes]}
+            self._send(200, json.dumps(data).encode(), "application/json")
+        elif self.path.startswith("/translate/available"):
+            try:
+                self._send(200, json.dumps({"packages": available_languages()}).encode(), "application/json")
+            except Exception as exc:  # noqa: BLE001
+                self._send(502, f"Could not fetch the language catalogue: {exc}".encode())
         elif self.path.startswith("/ai-status"):
             active = fetch_active_model()
             if active:
@@ -1264,6 +1601,15 @@ class Handler(BaseHTTPRequestHandler):
                     out = convert(body, source_ext, target, use_ai=use_ai)
                     return self._send(200, out, MIME.get(target, "application/octet-stream"))
 
+                if parsed.path == "/translate":
+                    target = (query.get("target", [""])[0] or "").lower()
+                    source = (query.get("source", ["auto"])[0] or "auto").lower()
+                    source_ext = (self.headers.get("x-source-ext", "pdf") or "pdf").lower()
+                    if not target.isalpha() or len(target) > 5:
+                        return self._send(400, b"Invalid target language")
+                    out, detected = translate_document(body, source_ext, target, source)
+                    return self._send(200, out, "application/pdf", {"x-detected-lang": detected})
+
                 # In-place editing (MuPDF). /edit/page: raw PDF body + ?n=<index>.
                 if parsed.path == "/edit/page":
                     n = int(query.get("n", ["0"])[0] or 0)
@@ -1276,6 +1622,29 @@ class Handler(BaseHTTPRequestHandler):
                     pdf = base64.b64decode(payload["pdf"])
                     out = edit_apply(pdf, payload.get("pages", []))
                     return self._send(200, out, "application/pdf")
+
+                # /redact: JSON { pdf: base64, pages: [{page, boxes:[{x,y,w,h}]}] } → redacted PDF.
+                if parsed.path == "/redact":
+                    payload = json.loads(body)
+                    pdf = base64.b64decode(payload["pdf"])
+                    out = redact_pdf(pdf, payload.get("pages", []))
+                    return self._send(200, out, "application/pdf")
+
+                # Language-bank management (admin only — gated by the internal token
+                # that the Next admin proxy attaches).
+                if parsed.path in ("/translate/install", "/translate/uninstall"):
+                    if self.headers.get("x-internal-token", "") != INTERNAL_TOKEN:
+                        return self._send(403, b"Forbidden")
+                    payload = json.loads(body)
+                    frm = (payload.get("from") or "").strip().lower()
+                    to = (payload.get("to") or "").strip().lower()
+                    if not frm.isalpha() or not to.isalpha():
+                        return self._send(400, b"Invalid language pair")
+                    if parsed.path.endswith("install"):
+                        install_pack(frm, to)
+                    else:
+                        uninstall_pack(frm, to)
+                    return self._send(200, json.dumps({"ok": True}).encode(), "application/json")
 
             return self._send(404, b"Not found")
         except WrongPassword:

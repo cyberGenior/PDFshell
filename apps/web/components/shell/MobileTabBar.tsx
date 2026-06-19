@@ -34,11 +34,17 @@ export function MobileTabBar({ onOpenPalette }: { onOpenPalette: () => void }) {
           <Link
             key={tab.href}
             href={tab.href}
+            aria-current={active ? 'page' : undefined}
             className={cn(
-              'flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition-colors [&_svg]:size-5',
+              'relative flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition-colors [&_svg]:size-5',
               active ? 'text-[var(--brand)]' : 'text-[var(--muted-foreground)]',
             )}
           >
+            {/* Active indicator bar — so the active tab isn't signalled by colour
+                alone (accessible for colour-blind users). */}
+            {active && (
+              <span aria-hidden className="absolute inset-x-5 top-0 h-0.5 rounded-full bg-[var(--brand)]" />
+            )}
             <Icon />
             {tab.label}
           </Link>

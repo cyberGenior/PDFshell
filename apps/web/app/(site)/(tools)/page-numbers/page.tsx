@@ -11,6 +11,9 @@ import { PrivacyNote } from '@/components/pdf/PrivacyNote';
 import { ResultCard } from '@/components/pdf/ResultCard';
 import { Button } from '@/components/ui/button';
 import { OptionCard } from '@/components/ui/OptionCard';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { Alert } from '@/components/ui/Alert';
 import { ProcessingOverlay } from '@/components/ui/Loader';
 import { downloadBlob, formatBytes, hexToRgb, cn } from '@/lib/utils';
 import { toast } from '@/lib/useToast';
@@ -153,25 +156,23 @@ export default function PageNumbersPage() {
             <div className="flex flex-wrap items-end gap-4">
               <label className="flex flex-col gap-1.5 text-sm">
                 <span className="font-medium">Format</span>
-                <select
+                <Select
                   value={format}
                   onChange={(e) => { setFormat(e.target.value as Format); setResult(null); }}
-                  className="h-10 w-fit rounded-md border border-[var(--border)] bg-[var(--background)] px-3"
                 >
                   <option value="n">4</option>
                   <option value="n-of-total">4 / 12</option>
                   <option value="page-n-of-total">Page 4 of 12</option>
-                </select>
+                </Select>
               </label>
               <label className="flex flex-col gap-1.5 text-sm">
                 <span className="font-medium">Font</span>
-                <select
+                <Select
                   value={pnFont}
                   onChange={(e) => { setPnFont(e.target.value as StampFontFamily); setResult(null); }}
-                  className="h-10 w-fit rounded-md border border-[var(--border)] bg-[var(--background)] px-3"
                 >
                   {FONTS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
-                </select>
+                </Select>
               </label>
               <label className="flex flex-col gap-1.5 text-sm">
                 <span className="font-medium">Colour</span>
@@ -200,20 +201,20 @@ export default function PageNumbersPage() {
             <div className="flex flex-wrap gap-4">
               <label className="flex flex-col gap-1.5 text-sm">
                 <span className="font-medium">Prefix</span>
-                <input
+                <Input
                   type="text" value={prefix} maxLength={12}
                   onChange={(e) => { setPrefix(e.target.value); setResult(null); }}
                   placeholder="e.g. “— ”"
-                  className="h-10 w-32 rounded-md border border-[var(--border)] bg-[var(--background)] px-3"
+                  className="w-32"
                 />
               </label>
               <label className="flex flex-col gap-1.5 text-sm">
                 <span className="font-medium">Suffix</span>
-                <input
+                <Input
                   type="text" value={suffix} maxLength={12}
                   onChange={(e) => { setSuffix(e.target.value); setResult(null); }}
                   placeholder="e.g. “ —”"
-                  className="h-10 w-32 rounded-md border border-[var(--border)] bg-[var(--background)] px-3"
+                  className="w-32"
                 />
               </label>
             </div>
@@ -243,7 +244,7 @@ export default function PageNumbersPage() {
               </label>
             </div>
 
-            {error && <p className="text-sm text-red-500">{error}</p>}
+            {error && <Alert variant="error">{error}</Alert>}
 
             <div className="flex items-center gap-3">
               <Button onClick={apply} disabled={busy}>

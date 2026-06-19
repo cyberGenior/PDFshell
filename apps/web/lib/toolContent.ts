@@ -315,6 +315,56 @@ export const TOOL_CONTENT: Record<string, ToolContent> = {
       FREE_FAQ,
     ],
   },
+  '/redact': {
+    heading: 'Redact a PDF — permanently remove sensitive content',
+    intro:
+      'Redacting a PDF means more than drawing a black box over a name or number — done properly, the text and images underneath are deleted from the file, so they can’t be selected, copied, or recovered. PDFShell does true redaction: open your PDF, drag a box across anything you want gone — account numbers, signatures, addresses, faces — across as many pages as you like, and download a clean copy with that content permanently removed. It’s the safe way to share contracts, bank statements, medical records or ID scans without leaking what’s underneath. Your file is processed on the PDFShell server and deleted immediately after — never stored.',
+    steps: [
+      'Drop in the PDF you want to redact.',
+      'Drag a box over each piece of text or image to remove — on any page.',
+      'Click “Redact & download” to get a copy with that content permanently deleted.',
+    ],
+    faqs: [
+      { q: 'Is the content really gone, or just hidden?', a: 'Really gone. PDFShell removes the underlying text and image data beneath each box (not just a black rectangle on top), so it can’t be copied, searched, or recovered.' },
+      { q: 'Can I redact more than one area or page?', a: 'Yes — add as many boxes as you need across every page, then apply them all at once.' },
+      SERVER_PRIVACY_FAQ,
+      FREE_FAQ,
+    ],
+  },
+  '/fill': {
+    heading: 'Fill in a PDF form online',
+    intro:
+      'Lots of PDFs — applications, tax and government forms, contracts, invoices — ship as interactive forms with real fields you’re meant to type into. PDFShell detects those fields automatically and places an input right where each one sits on the page, so you can fill the whole form in your browser without printing, scanning, or installing anything. Type your answers, tick the checkboxes, pick from dropdowns, then download a completed copy — and optionally “flatten” it so the answers are locked in and look like part of the document. It all happens on your device: the form and everything you type stay private and are never uploaded. If a PDF isn’t an interactive form, the Edit tool lets you place text anywhere on the page instead.',
+    steps: [
+      'Drop in a fillable PDF form.',
+      'Type into the detected fields, tick boxes and choose options.',
+      'Optionally flatten to lock the answers, then download the completed form.',
+    ],
+    faqs: [
+      { q: 'How do I fill a PDF form without printing it?', a: 'Open the PDF here — PDFShell finds its form fields and lets you type straight into them, then download the completed file. No printing or scanning.' },
+      { q: 'What if my PDF isn’t a fillable form?', a: 'If the PDF has no interactive fields, use the Edit tool to place text anywhere on the page instead.' },
+      { q: 'What does “flatten” do?', a: 'Flattening merges your answers into the page so they can’t be edited and display identically everywhere — handy before sending a form back.' },
+      PRIVACY_FAQ,
+      FREE_FAQ,
+    ],
+  },
+  '/translate': {
+    heading: 'Translate a document — PDF or photo',
+    intro:
+      'Need to read a contract, letter, form or sign that’s in another language? Drop in a PDF or a photo of the page and PDFShell reads the text (with OCR for photos and scans), detects what language it’s in, and translates it into the language you choose — keeping the original layout so the translation sits where the text was. It runs on a self-hosted, offline translation engine (Argos Translate), so your document is processed on the server and deleted right after, never sent to Google, DeepL or any third party. A bank of common languages is built in — English, French, Portuguese, Arabic, Swahili, Spanish and more — with others added on request. It’s free, with no sign-up and no watermark.',
+    steps: [
+      'Drop in a PDF, or take/upload a photo of the document.',
+      'Pick the language to translate into (the source is detected automatically).',
+      'Download the translated document with its layout preserved.',
+    ],
+    faqs: [
+      { q: 'Can it translate a photo of a document?', a: 'Yes — it runs OCR on photos and scans to read the text first, then translates it. Clear, well-lit images (≈150 DPI or better) work best.' },
+      { q: 'Which languages are supported?', a: 'A core bank ships in the app (English, French, Portuguese, Arabic, Swahili, Spanish, and more), and the admin can install additional language packs on demand.' },
+      { q: 'How good is the translation?', a: 'It uses the open-source Argos Translate engine — solid for everyday documents in common languages, though not quite at the level of paid services like DeepL. Layout is kept, but text that gets longer when translated is auto-fitted to its space.' },
+      SERVER_PRIVACY_FAQ,
+      FREE_FAQ,
+    ],
+  },
 };
 
 export function getToolContent(path: string): ToolContent | undefined {
